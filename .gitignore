@@ -1,3 +1,7 @@
+# Cad Models
+cots/*
+mechanical design/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
