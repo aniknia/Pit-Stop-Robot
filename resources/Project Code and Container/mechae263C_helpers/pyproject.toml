@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mechae263C_helpers"
+version = "1.0.0"
+dependencies = [
+    "numpy==1.26.4",  # For multi-dimensional array support
+    "scipy",  # For converting transfer functions to state space representation
+    "drake==1.33.*",  # For complex and extesible simulation
+    "matplotlib",  # For plotting data
+    "PyMuPDF",  # For converting pydot graphs from PDF data to png data
+]
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = [
+    "mechae263C_helpers", 
+    "mechae263C_helpers.drake", 
+    "mechae263C_helpers.hw2",
+    "mechae263C_helpers.hw4"
+]
+package-dir = {"" = "src"}
