@@ -62,13 +62,17 @@ class InverseDynamicsController:
 
         # ------------------------------------------------------------------------------
         # Manipulator Parameters #TODO Update Parameters According to Model
+        # Links lengths updated and widths added, still need masses
         # ------------------------------------------------------------------------------
         # Masses [Kg]
-        self.m1, self.m2, self.m3 = 0.193537, 0.0156075, ...
+        self.m1, self.m2, self.m3 = 0.193537, 0.0156075, 0.012
         # Distance to Center of Mass
-        self.lc1, self.lc2, self.lc3 = 0.0533903, 0.0281188, ...
+        self.lc1, self.lc2, self.lc3 = 0.075, 0.05, 0.03
         # Length of Link
-        self.l1, self.l2 = 0.0675, ...
+        self.l1, self.l2, self.l3 = 0.15, 0.1, .06
+        # Width of Link
+        self.w1, self.w2, self.w3 = 0.035, 0.034, 0.033 #approximated for now, TODO get actual width averages
+
         # ------------------------------------------------------------------------------
 
 
@@ -190,31 +194,37 @@ class InverseDynamicsController:
     def signal_handler(self, *_):
         self.stop()
 
-    def compute_inertia_matrix( #TODO VERIFY MATRIX
+    def compute_inertia_matrix( #Matrix verified with chatGPT and double checked for correctness
         self, joint_positions_rad: NDArray[np.double]
     ) -> NDArray[np.double]:
         q1, q2, q3 = joint_positions_rad
 
         m1, m2, m3 = self.m1, self.m2, self.m3
-        l1, l2 = self.l1, self.l2
+        l1, l2, l3 = self.l1, self.l2, self.l3
         lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
+        w1, w2, w3 = self.w1, self.w2, self.w3
+
+        #Moment of Inertia of each link, added these values to the B matrix for 2d rectangular inertia about perpendicular axis
+        I1 = 1/12 * m1 * (l1**2 + w1**2)
+        I2 = 1/12 * m2 * (l2**2 + w2**2)
+        I3 = 1/12 * m3 * (l3**2 + w3**2)
 
         #Initialize Inertia Matrix
         B_q = np.zeros((3, 3))
 
         # Diagonal Terms
-        B_q[0, 0] = (m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(q2)) + m3 * (l1**2 + l2**2 + lc3**2 + 2 * l1 * l2 * np.cos(q2) + 2 * l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3)))
-        B_q[1, 1] = (m2 * lc2**2 + m3 * (l2**2 + lc3**2 + 2 * l2 * lc3 * np.cos(q3)))
-        B_q[2, 2] = m3 * lc3**2
+        B_q[0, 0] = I1 + I2 + I3 + m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(q2)) + m3 * (l1**2 + l2**2 + lc3**2 + 2 * l1 * l2 * np.cos(q2) + 2 * l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
+        B_q[1, 1] = I2 + I3 + m2 * lc2**2 + m3 * (l2**2 + lc3**2 + 2 * l2 * lc3 * np.cos(q3))
+        B_q[2, 2] = I3 + m3 * lc3**2
 
         # Off-diagonal Terms (symmetric)
-        B_q[0, 1] = B_q[1, 0] = (m2 * (lc2**2 + l1 * lc2 * np.cos(q2)) + m3 * (l2**2 + lc3**2 + l1 * l2 * np.cos(q2) + l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3)))
-        B_q[0, 2] = B_q[2, 0] = m3 * (lc3**2 + l1 * lc3 * np.cos(q2 + q3) + l2 * lc3 * np.cos(q3))
-        B_q[1, 2] = B_q[2, 1] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3))
+        B_q[0, 1] = B_q[1, 0] = I2 + I3 + m2 * (lc2**2 + l1 * lc2 * np.cos(q2)) + m3 * (l2**2 + lc3**2 + l1 * l2 * np.cos(q2) + l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
+        B_q[0, 2] = B_q[2, 0] = I3 + m3 * (lc3**2 + l2 * lc3 * np.cos(q3) + l1 * lc3 * np.cos(q2 + q3))
+        B_q[1, 2] = B_q[2, 1] = I3 + m3 * (lc3**2 + l2 * lc3 * np.cos(q3))
 
         return B_q
 
-    def compute_coriolis_matrix( #TODO VERIFY MATRIX
+    def compute_coriolis_matrix( #Matrix verified with ChatGPT and double checked for correctness
         self, joint_positions_rad, joint_velocities_rad: NDArray[np.double]
     ) -> NDArray[np.double]:
         q1, q2, q3 = joint_positions_rad
@@ -232,7 +242,8 @@ class InverseDynamicsController:
         c131 = -m3*(l1*lc3*np.sin(q2+q3) + l2*lc3*np.sin(q3))
         c231 = -m3*l2*lc3*np.sin(q3)
 
-        C[0, 0] = c121*qdot2 + c131*qdot3
+        #All diagonal terms of C Matrix are zero for physical reasons, TODO need to verify the rest of the terms
+        #C[0, 0] = c121*qdot2 + c131*qdot3
         C[0, 1] = c121*qdot1 + c231*qdot3
         C[0, 2] = c131*qdot1 - c231*qdot2
         C[1, 0] = -c121*qdot1
@@ -256,9 +267,9 @@ class InverseDynamicsController:
 
         return -np.array(
             [
-                m1*g*lc1*cos(q1) + m2*g*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*g*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3)),
-                m2*g*lc2*cos(q1+q2) + m3*g*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3)),
-                m3*g*lc3*cos(q1+q2+q3)
+                g*(m1*lc1*cos(q1) + m2*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
+                g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
+                g*m3*lc3*cos(q1+q2+q3)
             ]
         ) 
 
