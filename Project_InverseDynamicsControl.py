@@ -64,14 +64,18 @@ class InverseDynamicsController:
         # Manipulator Parameters #TODO Update Parameters According to Model
         # Links lengths updated and widths added, still need masses
         # ------------------------------------------------------------------------------
-        # Masses [Kg]
-        self.m1, self.m2, self.m3 = 0.193537, 0.0156075, 0.012
+        # Density PLA = 1.24, 30%
+        rho = 1250*0.3 #kg/m^3
         # Distance to Center of Mass
-        self.lc1, self.lc2, self.lc3 = 0.075, 0.05, 0.03
+        self.lc1, self.lc2, self.lc3 = 0.12, 0.09, 0.025
         # Length of Link
-        self.l1, self.l2, self.l3 = 0.15, 0.1, .06
+        self.l1, self.l2, self.l3 = 0.15, 0.1, .065
         # Width of Link
-        self.w1, self.w2, self.w3 = 0.035, 0.034, 0.033 #approximated for now, TODO get actual width averages
+        self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) 
+        # Masses [Kg]
+        self.m3 = 0.077 + 0.014*0.3
+        self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2
+        self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2
 
         # ------------------------------------------------------------------------------
 
@@ -238,18 +242,20 @@ class InverseDynamicsController:
         C = np.zeros((3, 3))
 
         #Christoffel Symbols
-        c121 = -m2*l1*lc2*np.sin(q2) - m3*(l1*l2*np.sin(q2) + l1*lc3*np.sin(q2+q3))
-        c131 = -m3*(l1*lc3*np.sin(q2+q3) + l2*lc3*np.sin(q3))
-        c231 = -m3*l2*lc3*np.sin(q3)
+        c12 = m2*l1*lc2
+        c23 = m3*l1*lc3
+        c13 = m3*l1*lc3
+        c123 = m2*l1*lc2 + m3*l1*l2
 
-        #All diagonal terms of C Matrix are zero for physical reasons, TODO need to verify the rest of the terms
-        #C[0, 0] = c121*qdot2 + c131*qdot3
-        C[0, 1] = c121*qdot1 + c231*qdot3
-        C[0, 2] = c131*qdot1 - c231*qdot2
-        C[1, 0] = -c121*qdot1
-        C[1, 2] = c231*qdot1
-        C[2, 0] = -c131*qdot1
-        C[2, 1] = -c231*qdot1
+        #Coriolis matrix, C33 = 0
+        C[0, 0] = -c123*np.sin(q2)*qdot2 - c23*np.sin(q3)*qdot3 - c13*np.sin(q2+q3)*(qdot2+qdot3)
+        C[0, 1] = -c123*np.sin(q2)*(qdot1+qdot2) - c23*np.sin(q3)*qdot3 - c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
+        C[0, 2] = -(c23*np.sin(q3) - c13*np.sin(q2+q3))*(qdot1+qdot2+qdot3)
+        C[1, 0] = c123*np.sin(q2)*qdot1 + c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
+        C[1, 1] = -(c23*np.sin(q3) + c13*np.sin(q2+q3))*qdot3
+        C[1, 2] = -(c23*np.sin(q3) + c13*np.sin(q2+q3))*(qdot1+qdot2+qdot3)
+        C[2, 0] = c23*np.sin(q3)*qdot1 + c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
+        C[2, 1] = c23*np.sin(q3)*qdot2 + c13*np.sin(q2+q3)*(qdot2+qdot3)
 
         return C
 
