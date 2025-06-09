@@ -320,7 +320,9 @@ class InverseDynamicsController:
 if __name__ == "__main__":
     
     # Inverse Kinematics
-    def joint_positions(x,y,tilt):
+    def joint_positions(x, y, tilt):
+
+        tilt = np.deg2rad(tilt)
         
         x0 = x - l3*np.cos(tilt)
         y0 = y - l3*np.sin(tilt)
@@ -331,7 +333,7 @@ if __name__ == "__main__":
         theta1 = 180 + theta1A + theta1B
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
         theta3 = np.arcsin(((theta1A + theta1B)*l1)/l2) + tilt
-        return (theta1, theta2, theta3)    
+        return np.rad2deg([theta1, theta2, theta3])    
     
     # Initial Position
     q_initial = joint_positions(0.1,0.1,0)
