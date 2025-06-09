@@ -18,6 +18,13 @@ from numpy.typing import NDArray
 
 from mechae263C_helpers.minilabs import FixedFrequencyLoopManager, DCMotorModel
 
+# ------------------------------------------------------------------------------
+# Global Variables
+# ------------------------------------------------------------------------------
+# Linkage Lengths
+l1, l2, l3 = 0.15, 0.1, .065
+# ------------------------------------------------------------------------------
+
 class InverseDynamicsController:
     def __init__(
         self,
@@ -66,10 +73,10 @@ class InverseDynamicsController:
         # ------------------------------------------------------------------------------
         # Density PLA = 1.24, 30%
         rho = 1250*0.3 #kg/m^3
-        # Distance to Center of Mass
+        # Linkage Lengths
+        self.l1, self.l2, self.l3 = l1, l2, l3
+        # Center of Mass Lengths
         self.lc1, self.lc2, self.lc3 = 0.12, 0.09, 0.025
-        # Length of Link
-        self.l1, self.l2, self.l3 = 0.15, 0.1, .065
         # Width of Link
         self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) 
         # Masses [Kg]
@@ -312,30 +319,43 @@ class InverseDynamicsController:
 
 if __name__ == "__main__":
     
-    #TODO Calculate Initial and Desired Parameters
-    # Initial Joint Positions
-    q_initial = [..., ..., ...]
-    # Desired Joint Positions
-    q_desired = [..., ..., ...]
+    # Inverse Kinematics
+    def joint_positions(x,y,tilt):
+        
+        x0 = x - l3*np.cos(tilt)
+        y0 = y - l3*np.sin(tilt)
+        
+        theta1A = np.arctan(y0/x0)
+        theta1B = np.arccos((l1**2 + x0**2 + y0**2 - l2**2)/(2*l1*np.sqrt(x0**2 + y0**2)))
+        
+        theta1 = 180 + theta1A + theta1B
+        theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
+        theta3 = np.arcsin(((theta1A + theta1B)*l1)/l2) + tilt
+        return (theta1, theta2, theta3)    
+    
+    # Initial Position
+    q_initial = joint_positions(0.1,0.1,0)
+    # Desired Position
+    q_desired = joint_positions(0.15,0.1,0)
 
     # Initial Joint Velocities
-    qdot_initial = [..., ..., ...]
+    qdot_initial = [0, 0, 0]
     # Desired Joint Velocities
-    qdot_desired = [..., ..., ...]
+    qdot_desired = [0, 0, 0]
 
     # Desired Joint Acceleration
-    qddot_desired = [..., ..., ...]
+    qddot_desired = [10, 10, 10]
 
     #TODO Tune Gains
     # Proportional Gain
-    K_P = np.array([[..., 0, 0],
-                   [0, ..., 0],
-                   [0, 0, ...]])
+    K_P = np.array([[5, 0, 0],
+                   [0, 5, 0],
+                   [0, 0, 5]])
 
     # Derivative Gain
-    K_D = np.array([[..., 0, 0],
-                   [0, ..., 0],
-                   [0, 0, ...]])
+    K_D = np.array([[0.5, 0, 0],
+                   [0, 0.5, 0],
+                   [0, 0, 0.5]])
 
     # Correct COM Port and Baud Rate
     dxl_io = DynamixelIO(
