@@ -330,9 +330,17 @@ if __name__ == "__main__":
         theta1A = np.arctan(y0/x0)
         theta1B = np.arccos((l1**2 + x0**2 + y0**2 - l2**2)/(2*l1*np.sqrt(x0**2 + y0**2)))
         
-        theta1 = 180 + theta1A + theta1B
+        theta1 = np.pi + theta1A + theta1B
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
-        theta3 = np.arcsin(((theta1A + theta1B)*l1)/l2) + tilt
+
+        print(x0)
+        print(y0)
+        print(theta1A)
+        print(theta1B)
+        print(l1)
+        print(l2)
+
+        theta3 = np.arcsin((np.sin(theta1A+theta1B)*l1)/l2) + tilt
         return np.rad2deg([theta1, theta2, theta3])    
     
     # Initial Position
