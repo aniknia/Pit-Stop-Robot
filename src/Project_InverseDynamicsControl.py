@@ -332,14 +332,7 @@ if __name__ == "__main__":
         
         theta1 = np.pi + theta1A + theta1B
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
-
-        print(theta1A + theta1B)
-        print(l1)
-        print(l2)
-
         theta3 = 2*np.pi - (theta1A + theta1B) - theta2 + tilt
-
-        print(theta3)
 
         return np.rad2deg([theta1, theta2, theta3])    
     
