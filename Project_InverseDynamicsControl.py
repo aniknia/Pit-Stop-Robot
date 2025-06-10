@@ -343,7 +343,7 @@ if __name__ == "__main__":
     # Initial Position
     q_initial = joint_positions(0.18,0.05,0)
     # Desired Position
-    q_desired = joint_positions(0.25,0.05,0)
+    q_desired = joint_positions(0.35,0.05,0)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
