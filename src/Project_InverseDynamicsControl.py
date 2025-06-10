@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
     # Correct COM Port and Baud Rate
     dxl_io = DynamixelIO(
-        device_name="COM5",
+        device_name="/dev/tty.usbserial-FT9BTFVF",
         baud_rate=57_600,
     )
 
@@ -373,7 +373,7 @@ if __name__ == "__main__":
     )
 
     # Correct Motor IDs
-    dynamixel_ids = 1, 2, 3
+    dynamixel_ids = 0, 1, 2
 
     motor_group = motor_factory.create(*dynamixel_ids)
 
