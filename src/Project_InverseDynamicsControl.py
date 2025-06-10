@@ -377,7 +377,7 @@ if __name__ == "__main__":
     )
 
     # Correct Motor IDs
-    dynamixel_ids = 1, 2, 3
+    dynamixel_ids = 0, 1, 2
 
     motor_group = motor_factory.create(*dynamixel_ids)
 
