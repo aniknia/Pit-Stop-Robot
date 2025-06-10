@@ -341,9 +341,9 @@ if __name__ == "__main__":
         return np.rad2deg([theta1, theta2, theta3])    
     
     # Initial Position
-    q_initial = joint_positions(0.1,0.1,0)
+    q_initial = joint_positions(0.18,0.05,0)
     # Desired Position
-    q_desired = joint_positions(0.15,0.1,0)
+    q_desired = joint_positions(0.25,0.05,0)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
