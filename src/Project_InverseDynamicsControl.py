@@ -334,12 +334,16 @@ if __name__ == "__main__":
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
         theta3 = 2*np.pi - (theta1A + theta1B) - theta2 + tilt
 
+        theta1 = 2*np.pi - theta1
+        theta2 = 2*np.pi - theta2
+        theta3 = 2*np.pi - theta3
+
         return np.rad2deg([theta1, theta2, theta3])    
     
     # Initial Position
-    q_initial = joint_positions(0.15,0.05,0)
+    q_initial = joint_positions(0.18,0.05,0)
     # Desired Position
-    q_desired = joint_positions(0.2,0.05,0)
+    q_desired = joint_positions(0.3,0.05,0)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
@@ -373,7 +377,7 @@ if __name__ == "__main__":
     )
 
     # Correct Motor IDs
-    dynamixel_ids = 0, 1, 2
+    dynamixel_ids = 1, 2, 3
 
     motor_group = motor_factory.create(*dynamixel_ids)
 
