@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: mechae263C_helpers
-Version: 1.0.0
-Requires-Python: >=3.10
-Requires-Dist: numpy==1.26.4
-Requires-Dist: scipy
-Requires-Dist: drake==1.33.*
-Requires-Dist: matplotlib
-Requires-Dist: PyMuPDF

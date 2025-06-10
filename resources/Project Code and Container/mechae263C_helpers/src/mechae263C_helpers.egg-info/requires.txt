@@ -1,5 +1,0 @@
-numpy==1.26.4
-scipy
-drake==1.33.*
-matplotlib
-PyMuPDF
