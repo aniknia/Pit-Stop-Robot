@@ -36,7 +36,7 @@ class InverseDynamicsController:
         qdot_initial_deg_per_s: Sequence[float],
         qdot_desired_deg_per_s: Sequence[float],
         qddot_desired_deg_per_s2: Sequence[float],
-        max_duration_s: float = 2.0,
+        max_duration_s: float = 8.0,
     ):
         # ------------------------------------------------------------------------------
         # Setting up Controller Related Variables
@@ -355,7 +355,7 @@ if __name__ == "__main__":
 
     #TODO Tune Gains
     # Proportional Gain
-    K_P = np.array([[5, 0, 0],
+    K_P = np.array([[1, 0, 0],
                    [0, 5, 0],
                    [0, 0, 5]])
 
