@@ -368,7 +368,7 @@ if __name__ == "__main__":
 
     #TODO Tune Gains
     # Proportional Gain
-    K_P = np.array([[1, 0, 0],
+    K_P = np.array([[100, 0, 0],
                    [0, 0, 0],
                    [0, 0, 0]])
 
