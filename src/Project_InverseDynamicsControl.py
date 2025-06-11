@@ -390,7 +390,7 @@ if __name__ == "__main__":
                    [0, 0, 13]])
     
     # Integral Gain
-    K_I = np.array([[.1, 0, 0],
+    K_I = np.array([[1, 0, 0],
                    [0, 0, 0],
                    [0, 0, 0]])
 
