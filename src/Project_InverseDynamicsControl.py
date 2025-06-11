@@ -117,6 +117,8 @@ class InverseDynamicsController:
         #print("checkpoint 1")
         self.go_to_home_configuration()
 
+        print("entering control loop")
+
         start_time = time.time()
         while self.should_continue:
             # --------------------------------------------------------------------------
@@ -164,7 +166,7 @@ class InverseDynamicsController:
             B_q = self.compute_inertia_matrix(q_rad)
 
             #Nonlinear Components
-            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) - self.calc_gravity_compensation_torque(q_rad)
+            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
 
             #Torque Output Controls
             #u = (B_q @ y) + n
@@ -309,6 +311,7 @@ class InverseDynamicsController:
                     should_continue_loop = True
                     break
         
+        print("reached initial condition")
         time.sleep(2)
         
         # Set PWM Mode (i.e. voltage control)
