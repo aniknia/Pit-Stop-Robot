@@ -382,9 +382,9 @@ if __name__ == "__main__":
                    [0, 0, 1.75]])
 
     # Derivative Gain
-    K_D = np.array([[0.5, 0, 0],
-                   [0, 0.04, 0],
-                   [0, 0, 0.15]])
+    K_D = np.array([[0.2, 0, 0],
+                   [0, 0.045, 0],
+                   [0, 0, 0.12]])
 
     # Correct COM Port and Baud Rate
     # Mac: /dev/tty.usbserial-FT9BTFVF
