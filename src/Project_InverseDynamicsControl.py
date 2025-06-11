@@ -123,6 +123,7 @@ class InverseDynamicsController:
         self.go_to_home_configuration()
 
         start_time = time.time()
+        integral_error=0
         while self.should_continue:
             #print("checkpoint 3")
             # --------------------------------------------------------------------------
