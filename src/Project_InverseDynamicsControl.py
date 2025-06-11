@@ -154,9 +154,13 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
             # Position Error
             q_error = self.q_desired_rad - q_rad
+            print(self.q_desired_rad)
+            print(q_rad)
 
             #Velocity Error
             qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
+            print(self.qdot_desired_rad_per_s)
+            print(qdot_rad_per_s)
 
             y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + self.qddot_desired_rad_per_s2
             # --------------------------------------------------------------------------
@@ -172,8 +176,7 @@ class InverseDynamicsController:
             n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
 
             #Torque Output Controls
-            #u = (B_q @ y) + n
-            u = y + self.calc_gravity_compensation_torque(q_rad)
+            u = (B_q @ y) + n
             # --------------------------------------------------------------------------
 
 
