@@ -325,7 +325,7 @@ class InverseDynamicsController:
 if __name__ == "__main__":
     
     # Inverse Kinematics
-    def joint_positions(x, y, tilt):
+    def endeff2joints(x, y, tilt):
 
         tilt = np.deg2rad(tilt)
         
@@ -346,11 +346,11 @@ if __name__ == "__main__":
         return np.rad2deg([theta1, theta2, theta3])    
     
     # Initial Position
-    q_initial = joint_positions(0.18,0.05,0)
+    q_initial = endeff2joints(0.18,0.05,0)
     # Desired Position
-    q_desired = joint_positions(0.3,0.05,0)
+    q_desired = endeff2joints(0.3,0.05,0)
     # Final Position
-    #q_final = joint_positions(0.3,0.05,10)
+    #q_final = endeff2joints(0.3,0.05,10)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
@@ -446,7 +446,7 @@ if __name__ == "__main__":
         label="Setpoint"
     )
     ax_motor2.axhline(
-        math.degrees(controller.q_desired_rad[1]), 
+        math.degrees(controller.q_desired_rad[2]), 
         ls="--", 
         color="red", 
         label="Setpoint"
@@ -472,13 +472,13 @@ if __name__ == "__main__":
     )
     ax_motor1.axvline(1.5, ls=":", color="purple")
     ax_motor2.axhline(
-        math.degrees(controller.q_desired_rad[1]) - 1, 
+        math.degrees(controller.q_desired_rad[2]) - 1, 
         ls=":", 
         color="blue", 
         label="Convergence Bound"
     )
     ax_motor2.axhline(
-        math.degrees(controller.q_desired_rad[1]) + 1, ls=":", color="blue"
+        math.degrees(controller.q_desired_rad[2]) + 1, ls=":", color="blue"
     )
     ax_motor2.axvline(1.5, ls=":", color="purple")
 
@@ -497,10 +497,11 @@ if __name__ == "__main__":
     )
     ax_motor2.plot(
         time_stamps,
-        joint_positions[1],
+        joint_positions[2],
         color="black",
         label="Motor Angle Trajectory",
     )
+
     ax_motor0.legend()
     ax_motor1.legend()
     ax_motor2.legend()
