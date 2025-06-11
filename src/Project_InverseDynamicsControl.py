@@ -221,14 +221,14 @@ class InverseDynamicsController:
         B_q = np.zeros((3, 3))
 
         # Diagonal Terms
-        B_q[0, 0] = I1 + I2 + I3 + m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(q2)) + m3 * (l1**2 + l2**2 + lc3**2 + 2 * l1 * l2 * np.cos(q2) + 2 * l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
-        B_q[1, 1] = I2 + I3 + m2 * lc2**2 + m3 * (l2**2 + lc3**2 + 2 * l2 * lc3 * np.cos(q3))
-        B_q[2, 2] = I3 + m3 * lc3**2
+        B_q[0, 0] = m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(q2)) + m3 * (l1**2 + l2**2 + lc3**2 + 2 * l1 * l2 * np.cos(q2) + 2 * l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
+        B_q[1, 1] = m2 * lc2**2 + m3 * (l2**2 + lc3**2 + 2 * l2 * lc3 * np.cos(q3))
+        B_q[2, 2] = m3 * lc3**2
 
         # Off-diagonal Terms (symmetric)
-        B_q[0, 1] = B_q[1, 0] = I2 + I3 + m2 * (lc2**2 + l1 * lc2 * np.cos(q2)) + m3 * (l2**2 + lc3**2 + l1 * l2 * np.cos(q2) + l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
-        B_q[0, 2] = B_q[2, 0] = I3 + m3 * (lc3**2 + l2 * lc3 * np.cos(q3) + l1 * lc3 * np.cos(q2 + q3))
-        B_q[1, 2] = B_q[2, 1] = I3 + m3 * (lc3**2 + l2 * lc3 * np.cos(q3))
+        B_q[0, 1] = B_q[1, 0] = m2 * (lc2**2 + l1 * lc2 * np.cos(q2)) + m3 * (l2**2 + lc3**2 + l1 * l2 * np.cos(q2) + l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
+        B_q[0, 2] = B_q[2, 0] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3) + l1 * lc3 * np.cos(q2 + q3))
+        B_q[1, 2] = B_q[2, 1] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3))
 
         return B_q
 
