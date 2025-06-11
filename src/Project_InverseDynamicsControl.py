@@ -360,18 +360,18 @@ if __name__ == "__main__":
     #qdot_final = [0, 0, 0]
 
     # Desired Joint Acceleration
-    qddot_desired = [10, 10, 10]
+    qddot_desired = [0, 0, 0]
 
     #TODO Tune Gains
     # Proportional Gain
     K_P = np.array([[1, 0, 0],
-                   [0, 5, 0],
-                   [0, 0, 5]])
+                   [0, 0, 0],
+                   [0, 0, 0]])
 
     # Derivative Gain
-    K_D = np.array([[0.5, 0, 0],
-                   [0, 0.5, 0],
-                   [0, 0, 0.5]])
+    K_D = np.array([[0, 0, 0],
+                   [0, 0, 0],
+                   [0, 0, 0]])
 
     # Correct COM Port and Baud Rate
     # Mac: /dev/tty.usbserial-FT9BTFVF
