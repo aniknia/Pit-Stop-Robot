@@ -31,6 +31,7 @@ class InverseDynamicsController:
         motor_group: DynamixelMotorGroup,
         K_P: NDArray[np.double],
         K_D: NDArray[np.double],
+        K_I: NDArray[np.double],
         q_initial_deg: Sequence[float],
         q_desired_deg: Sequence[float],
         qdot_initial_deg_per_s: Sequence[float],
@@ -55,6 +56,7 @@ class InverseDynamicsController:
         #Gains
         self.K_P = np.asarray(K_P, dtype=np.double)
         self.K_D = np.asarray(K_D, dtype=np.double)
+        self.K_I = np.asarray(K_I, dtype=np.double)
 
         self.control_freq_Hz = 30.0
         self.max_duration_s = float(max_duration_s)
@@ -162,7 +164,9 @@ class InverseDynamicsController:
             #print("Velocity Error")
             #print(qdot_error)
 
-            y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + self.qddot_desired_rad_per_s2
+            integral_error += q_error * self.control_period_s
+
+            y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error)+ self.qddot_desired_rad_per_s2
             # --------------------------------------------------------------------------
 
 
@@ -383,6 +387,11 @@ if __name__ == "__main__":
     K_D = np.array([[16, 0, 0],
                    [0, 4, 0],
                    [0, 0, 13]])
+    
+    # Integral Gain
+    K_I = np.array([[.1, 0, 0],
+                   [0, 0, 0],
+                   [0, 0, 0]])
 
     """ BEFORE ADDING NONLINEAR TERMS
     # Proportional Gain
@@ -420,6 +429,7 @@ if __name__ == "__main__":
         motor_group=motor_group,
         K_P=K_P,
         K_D=K_D,
+        K_I=K_I,
         q_initial_deg=q_initial,
         q_desired_deg=q_desired,
         qdot_initial_deg_per_s=qdot_initial,
