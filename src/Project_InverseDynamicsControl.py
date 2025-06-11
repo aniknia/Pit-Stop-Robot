@@ -134,7 +134,7 @@ class InverseDynamicsController:
 
             # Save for plotting
             self.joint_position_history.append(q_rad)
-            self.joint_position_history.append(qdot_rad_per_s)
+            # self.joint_position_history.append(qdot_rad_per_s)
             self.time_stamps.append(time.time() - start_time)
             # --------------------------------------------------------------------------
 
