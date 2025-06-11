@@ -76,11 +76,11 @@ class InverseDynamicsController:
         # Linkage Lengths
         self.l1, self.l2, self.l3 = l1, l2, l3
         # Center of Mass Lengths
-        self.lc1, self.lc2, self.lc3 = 0.13, 0.09, 0.065
+        self.lc1, self.lc2, self.lc3 = 0.13, 0.08, 0.05
         # Width of Link
         self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) 
         # Masses [Kg]
-        self.m3 = 0.077 + 0.014*0.3 + 0.1
+        self.m3 = 0.077 + 0.014*0.3
         self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2
         self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2
 
