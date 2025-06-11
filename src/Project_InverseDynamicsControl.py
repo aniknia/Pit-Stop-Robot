@@ -120,8 +120,6 @@ class InverseDynamicsController:
         #print("checkpoint 1")
         self.go_to_home_configuration()
 
-        time.sleep(2)
-
         start_time = time.time()
         while self.should_continue:
             #print("checkpoint 3")
@@ -328,6 +326,7 @@ class InverseDynamicsController:
                     break
         
         #print("checkpoint 2")
+        time.sleep(2)
         
         # Set PWM Mode (i.e. voltage control)
         self.motor_group.disable_torque()
