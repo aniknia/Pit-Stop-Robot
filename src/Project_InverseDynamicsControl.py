@@ -80,7 +80,7 @@ class InverseDynamicsController:
         # Width of Link
         self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) 
         # Masses [Kg]
-        self.m3 = 0.077 + 0.014*0.3 + 0.02
+        self.m3 = 0.077 + 0.014*0.3 + 0.1
         self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2
         self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2
 
