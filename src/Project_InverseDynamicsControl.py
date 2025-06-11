@@ -76,11 +76,11 @@ class InverseDynamicsController:
         # Linkage Lengths
         self.l1, self.l2, self.l3 = l1, l2, l3
         # Center of Mass Lengths
-        self.lc1, self.lc2, self.lc3 = 0.13, 0.09, 0.055
+        self.lc1, self.lc2, self.lc3 = 0.13, 0.09, 0.065
         # Width of Link
         self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) 
         # Masses [Kg]
-        self.m3 = 0.077 + 0.014*0.3
+        self.m3 = 0.077 + 0.014*0.3 + 0.02
         self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2
         self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2
 
@@ -154,13 +154,13 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
             # Position Error
             q_error = self.q_desired_rad - q_rad
-            print("Position Error")
-            print(q_error)
+            #print("Position Error")
+            #print(q_error)
 
             #Velocity Error
             qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
-            print("Velocity Error")
-            print(qdot_error)
+            #print("Velocity Error")
+            #print(qdot_error)
 
             y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + self.qddot_desired_rad_per_s2
             # --------------------------------------------------------------------------
@@ -171,13 +171,13 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
             #Inertia Matrix
             B_q = self.compute_inertia_matrix(q_rad)
-            print("B_q @ y")
-            print(B_q @ y)
+            #print("B_q @ y")
+            #print(B_q @ y)
 
             #Nonlinear Components
             n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
-            print("n")
-            print(n)
+            #print("n")
+            #print(n)
 
             #Torque Output Controls
             #u = (B_q @ y) + n
