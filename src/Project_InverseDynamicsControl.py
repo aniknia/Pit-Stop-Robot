@@ -380,7 +380,7 @@ if __name__ == "__main__":
     qddot_desired = [0, 0, 0]
 
     # Proportional Gain
-    K_P = np.array([[200, 0, 0],
+    K_P = np.array([[150, 0, 0],
                    [0, 185, 0],
                    [0, 0, 175]])
 
