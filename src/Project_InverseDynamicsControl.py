@@ -345,14 +345,14 @@ if __name__ == "__main__":
     # Desired Position
     q_desired = joint_positions(0.3,0.05,0)
     # Final Position
-    q_final = joint_positions(0.3,0.05,45)
+    #q_final = joint_positions(0.3,0.05,10)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
     # Desired Joint Velocities
     qdot_desired = [0, 0, 0]
     # Final Joint Velocities
-    qdot_final = [0, 0, 0]
+    #qdot_final = [0, 0, 0]
 
     # Desired Joint Acceleration
     qddot_desired = [10, 10, 10]
@@ -394,10 +394,8 @@ if __name__ == "__main__":
         K_D=K_D,
         q_initial_deg=q_initial,
         q_desired_deg=q_desired,
-        #q_final_deg=q_final,
         qdot_initial_deg_per_s=qdot_initial,
         qdot_desired_deg_per_s=qdot_desired,
-        #qdot_final_deg_per_s=qdot_final,
         qddot_desired_deg_per_s2=qddot_desired
     )
     # ----------------------------------------------------------------------------------
