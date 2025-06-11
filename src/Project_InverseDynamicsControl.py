@@ -401,78 +401,59 @@ if __name__ == "__main__":
     time_stamps = np.asarray(controller.time_stamps)
     joint_positions = np.rad2deg(controller.joint_position_history).T
 
-
     # ----------------------------------------------------------------------------------
     # Plot Results
-    # TODO I haven't touched the plots yet
     # ----------------------------------------------------------------------------------
-"""
     date_str = datetime.now().strftime("%d-%m_%H-%M-%S")
     fig_file_name = f"joint_positions_vs_time_{date_str}.pdf"
 
     # Create figure and axes
-    fig = plt.figure(figsize=(10, 5))
-    ax_motor0 = fig.add_subplot(121)
-    ax_motor1 = fig.add_subplot(122)
+    fig, (ax_motor0, ax_motor1, ax_motor2) = plt.subplots(3, 1, figsize=(10, 12))
 
     # Label Plots
     fig.suptitle(f"Motor Angles vs Time")
     ax_motor0.set_title("Motor Joint 0")
     ax_motor1.set_title("Motor Joint 1")
-    ax_motor0.set_xlabel("Time [s]")
-    ax_motor1.set_xlabel("Time [s]")
-    ax_motor0.set_ylabel("Motor Angle [deg]")
-    ax_motor1.set_ylabel("Motor Angle [deg]")
+    ax_motor2.set_title("Motor Joint 2")
 
-    ax_motor0.axhline(
-        math.degrees(controller.q_desired_rad[0]), 
-        ls="--", 
-        color="red", 
-        label="Setpoint"
-    )
-    ax_motor1.axhline(
-        math.degrees(controller.q_desired_rad[1]), 
-        ls="--", 
-        color="red", 
-        label="Setpoint"
-    )
-    ax_motor0.axhline(
-        math.degrees(controller.q_desired_rad[0]) - 1, ls=":", color="blue"
-    )
-    ax_motor0.axhline(
-        math.degrees(controller.q_desired_rad[0]) + 1, 
-        ls=":", 
-        color="blue", 
-        label="Convergence Bound"
-    )
-    ax_motor0.axvline(1.5, ls=":", color="purple")
-    ax_motor1.axhline(
-        math.degrees(controller.q_desired_rad[1]) - 1, 
-        ls=":", 
-        color="blue", 
-        label="Convergence Bound"
-    )
-    ax_motor1.axhline(
-        math.degrees(controller.q_desired_rad[1]) + 1, ls=":", color="blue"
-    )
-    ax_motor1.axvline(1.5, ls=":", color="purple")
+    ax_motor2.set_xlabel("Time [s]")
+
+    ax_motor0.set_ylabel("Angle [deg]")
+    ax_motor1.set_ylabel("Angle [deg]")
+    ax_motor2.set_ylabel("Angle [deg]")
+
+    # Setpoint lines for each motor
+    for ax, motor_idx in zip([ax_motor0, ax_motor1, ax_motor2], range(3)):
+        ax.axhline(
+            math.degrees(controller.q_desired_rad[motor_idx]), 
+            ls="--", 
+            color="red", 
+            label="Setpoint"
+        )
+        ax.axhline(
+            math.degrees(controller.q_desired_rad[motor_idx]) - 1, 
+            ls=":", 
+            color="blue",
+            label="Convergence Bound"
+        )
+        ax.axhline(
+            math.degrees(controller.q_desired_rad[motor_idx]) + 1, 
+            ls=":", 
+            color="blue"
+        )
+        ax.axvline(1.5, ls=":", color="purple", label="Transition Time")
 
     # Plot motor angle trajectories
-    ax_motor0.plot(
-        time_stamps,
-        joint_positions[0],
-        color="black",
-        label="Motor Angle Trajectory",
-    )
-    ax_motor1.plot(
-        time_stamps,
-        joint_positions[1],
-        color="black",
-        label="Motor Angle Trajectory",
-    )
-    ax_motor0.legend()
-    ax_motor1.legend()
+    for ax, motor_idx in zip([ax_motor0, ax_motor1, ax_motor2], range(3)):
+        ax.plot(
+            time_stamps,
+            joint_positions[motor_idx],
+            color="black",
+            label="Motor Angle Trajectory",
+        )
+        ax.legend()
+
+    plt.tight_layout()
     fig.savefig(fig_file_name)
     # ----------------------------------------------------------------------------------
     plt.show()
-"""
