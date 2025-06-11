@@ -375,14 +375,14 @@ if __name__ == "__main__":
     qddot_desired = [0, 0, 0]
 
     # Proportional Gain
-    K_P = np.array([[30, 0, 0],
-                   [0, 18.5, 0],
-                   [0, 0, 17.5]])
+    K_P = np.array([[300, 0, 0],
+                   [0, 185, 0],
+                   [0, 0, 175]])
 
     # Derivative Gain
-    K_D = np.array([[1.6, 0, 0],
-                   [0, 0.4, 0],
-                   [0, 0, 1.3]])
+    K_D = np.array([[16, 0, 0],
+                   [0, 4, 0],
+                   [0, 0, 13]])
 
     """ BEFORE ADDING NONLINEAR TERMS
     # Proportional Gain
