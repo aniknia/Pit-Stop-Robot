@@ -294,7 +294,7 @@ class InverseDynamicsController:
         return -np.array(
             [
                 g*(m1*lc1*cos(q1) + m2*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
-                g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
+                g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3)) - 0.06),
                 g*m3*lc3*cos(q1+q2+q3)
             ]
         ) 
