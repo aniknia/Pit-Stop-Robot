@@ -117,10 +117,12 @@ class InverseDynamicsController:
         # ------------------------------------------------------------------------------
     
     def start_control_loop(self):
+        print("checkpoint 1")
         self.go_to_home_configuration()
 
         start_time = time.time()
         while self.should_continue:
+            print("checkpoint 3")
             # --------------------------------------------------------------------------
             # Step 1 - Get feedback
             # --------------------------------------------------------------------------
@@ -311,7 +313,9 @@ class InverseDynamicsController:
                 if abs(home_positions_rad[dxl_id] - q_rad[dxl_id]) > abs_tol:
                     should_continue_loop = True
                     break
-
+        
+        print("checkpoint 2")
+        
         # Set PWM Mode (i.e. voltage control)
         self.motor_group.disable_torque()
         self.motor_group.set_mode(DynamixelMode.PWM)
