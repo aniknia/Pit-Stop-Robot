@@ -377,13 +377,13 @@ if __name__ == "__main__":
 
     #TODO Tune Gains
     # Proportional Gain
-    K_P = np.array([[2, 0, 0],
-                   [0, 1.1, 0],
-                   [0, 0, 1.25]])
+    K_P = np.array([[2.5, 0, 0],
+                   [0, 1.5, 0],
+                   [0, 0, 1.4]])
 
     # Derivative Gain
-    K_D = np.array([[0.03, 0, 0],
-                   [0, 0.01, 0],
+    K_D = np.array([[0.1, 0, 0],
+                   [0, 0.03, 0],
                    [0, 0, 0.1]])
 
     # Correct COM Port and Baud Rate
