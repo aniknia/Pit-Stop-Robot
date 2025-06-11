@@ -175,12 +175,13 @@ class InverseDynamicsController:
             print(B_q @ y)
 
             #Nonlinear Components
-            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) - self.calc_gravity_compensation_torque(q_rad)
+            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
             print("n")
             print(n)
 
             #Torque Output Controls
-            u = (B_q @ y) + n
+            #u = (B_q @ y) + n
+            u = self.calc_gravity_compensation_torque(q_rad)
             # --------------------------------------------------------------------------
 
 
