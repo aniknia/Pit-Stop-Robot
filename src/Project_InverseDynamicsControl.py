@@ -369,8 +369,10 @@ if __name__ == "__main__":
                    [0, 0, 0.5]])
 
     # Correct COM Port and Baud Rate
+    # Mac: /dev/tty.usbserial-FT9BTFVF
+    # Windows: COM4
     dxl_io = DynamixelIO(
-        device_name="/dev/tty.usbserial-FT9BTFVF",
+        device_name="COM4",
         baud_rate=57_600,
     )
 
