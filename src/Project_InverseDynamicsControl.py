@@ -355,6 +355,8 @@ if __name__ == "__main__":
     
     # Initial Position
     q_initial = endeff2joints(0.18,0.05,0)
+    print("home position")
+    print(q_initial)
     # Desired Position
     q_desired = endeff2joints(0.3,0.05,0)
     # Final Position
