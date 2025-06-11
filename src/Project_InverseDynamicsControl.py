@@ -117,12 +117,12 @@ class InverseDynamicsController:
         # ------------------------------------------------------------------------------
     
     def start_control_loop(self):
-        print("checkpoint 1")
+        #print("checkpoint 1")
         self.go_to_home_configuration()
 
         start_time = time.time()
         while self.should_continue:
-            print("checkpoint 3")
+            #print("checkpoint 3")
             # --------------------------------------------------------------------------
             # Step 1 - Get feedback
             # --------------------------------------------------------------------------
@@ -154,13 +154,13 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
             # Position Error
             q_error = self.q_desired_rad - q_rad
-            print(self.q_desired_rad)
-            print(q_rad)
+            print("Position Error")
+            print(q_error)
 
             #Velocity Error
             qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
-            print(self.qdot_desired_rad_per_s)
-            print(qdot_rad_per_s)
+            print("Velocity Error")
+            print(qdot_error)
 
             y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + self.qddot_desired_rad_per_s2
             # --------------------------------------------------------------------------
@@ -171,9 +171,13 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
             #Inertia Matrix
             B_q = self.compute_inertia_matrix(q_rad)
+            print("B_q @ y")
+            print(B_q @ y)
 
             #Nonlinear Components
             n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
+            print("n")
+            print(n)
 
             #Torque Output Controls
             u = (B_q @ y) + n
@@ -196,7 +200,7 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
 
             # Print current position in degrees
-            print("q [deg]:", np.degrees(q_rad))
+            #print("q [deg]:", np.degrees(q_rad))
 
             # This code helps this while loop run at a fixed frequency
             self.loop_manager.sleep()
@@ -315,11 +319,10 @@ class InverseDynamicsController:
             q_rad = self.motor_group.angle_rad
             for dxl_id in home_positions_rad:
                 if abs(home_positions_rad[dxl_id] - q_rad[dxl_id]) > abs_tol:
-                    #print(home_positions_rad[dxl_id] - q_rad[dxl_id])
                     should_continue_loop = True
                     break
         
-        print("checkpoint 2")
+        #print("checkpoint 2")
         
         # Set PWM Mode (i.e. voltage control)
         self.motor_group.disable_torque()
