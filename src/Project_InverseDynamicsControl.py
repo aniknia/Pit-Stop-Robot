@@ -181,7 +181,7 @@ class InverseDynamicsController:
 
             #Torque Output Controls
             #u = (B_q @ y) + n
-            u = y - self.calc_gravity_compensation_torque(q_rad)
+            u = self.calc_gravity_compensation_torque(q_rad)
             # --------------------------------------------------------------------------
 
 
@@ -291,7 +291,7 @@ class InverseDynamicsController:
 
         print(g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3))))
 
-        return -np.array(
+        return np.array(
             [
                 g*(m1*lc1*cos(q1) + m2*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
                 g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3)) - 0.01),
@@ -357,7 +357,7 @@ if __name__ == "__main__":
         return np.rad2deg([theta1, theta2, theta3])    
     
     # Initial Position
-    q_initial = endeff2joints(0.18,0.05,0)
+    q_initial = endeff2joints(0.3,0.05,0)
     print("home position")
     print(q_initial)
     # Desired Position
