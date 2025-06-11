@@ -181,7 +181,7 @@ class InverseDynamicsController:
 
             #Torque Output Controls
             #u = (B_q @ y) + n
-            u = (B_q @ y) - self.calc_gravity_compensation_torque(q_rad)
+            u = y - self.calc_gravity_compensation_torque(q_rad)
             # --------------------------------------------------------------------------
 
 
