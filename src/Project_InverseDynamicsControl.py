@@ -304,13 +304,14 @@ class InverseDynamicsController:
         self.motor_group.angle_rad = home_positions_rad
         time.sleep(0.5)
         abs_tol = math.radians(1.0)
-        
+
         should_continue_loop = True
         while should_continue_loop:
             should_continue_loop = False
             q_rad = self.motor_group.angle_rad
             for dxl_id in home_positions_rad:
                 if abs(home_positions_rad[dxl_id] - q_rad[dxl_id]) > abs_tol:
+                    print(home_positions_rad[dxl_id] - q_rad[dxl_id])
                     should_continue_loop = True
                     break
         
