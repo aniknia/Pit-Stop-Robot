@@ -22,7 +22,7 @@ from mechae263C_helpers.minilabs import FixedFrequencyLoopManager, DCMotorModel
 # Global Variables
 # ------------------------------------------------------------------------------
 # Linkage Lengths
-l1, l2, l3 = 0.15, 0.1, .07
+l1, l2, l3 = 0.15, 0.1, .07 #[m]
 # ------------------------------------------------------------------------------
 
 class InverseDynamicsController:
@@ -42,18 +42,18 @@ class InverseDynamicsController:
         # ------------------------------------------------------------------------------
         # Setting up Controller Related Variables
         # ------------------------------------------------------------------------------
-        #Intial and Desired Positions
+        # Intial and Desired Positions
         self.q_initial_rad = np.deg2rad(q_initial_deg)
         self.q_desired_rad = np.deg2rad(q_desired_deg)
 
-        #Intial and Desired Velocities
+        # Intial and Desired Velocities
         self.qdot_initial_rad_per_s = np.deg2rad(qdot_initial_deg_per_s)
         self.qdot_desired_rad_per_s = np.deg2rad(qdot_desired_deg_per_s)
 
-        #Intial and Desired Accelerations
+        # Intial and Desired Accelerations
         self.qddot_desired_rad_per_s2 = np.deg2rad(qddot_desired_deg_per_s2)
 
-        #Gains
+        # Gains
         self.K_P = np.asarray(K_P, dtype=np.double)
         self.K_D = np.asarray(K_D, dtype=np.double)
         self.K_I = np.asarray(K_I, dtype=np.double)
@@ -70,22 +70,20 @@ class InverseDynamicsController:
 
 
         # ------------------------------------------------------------------------------
-        # Manipulator Parameters #TODO Update Parameters According to Model
-        # Links lengths updated and widths added, still need masses
+        # Manipulator Parameters
         # ------------------------------------------------------------------------------
-        # Density PLA = 1.24, 30%
-        rho = 1250*0.3 #kg/m^3
+        # Density PLA, 30%
+        rho = 1250*0.3 #[kg/m^3]
         # Linkage Lengths
-        self.l1, self.l2, self.l3 = l1, l2, l3
+        self.l1, self.l2, self.l3 = l1, l2, l3 #[m]
         # Center of Mass Lengths
-        self.lc1, self.lc2, self.lc3 = 0.13, 0.08, 0.05
+        self.lc1, self.lc2, self.lc3 = 0.13, 0.08, 0.05 #[m]
         # Width of Link
-        self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) 
-        # Masses [Kg]
-        self.m3 = 0.077 + 0.014*0.3
-        self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2
-        self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2
-
+        self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) #[m]
+        # Masses
+        self.m3 = 0.077 + 0.014*0.3 #[kg]
+        self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2 #[kg]
+        self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2 #[kg]
         # ------------------------------------------------------------------------------
 
 
@@ -119,13 +117,11 @@ class InverseDynamicsController:
         # ------------------------------------------------------------------------------
     
     def start_control_loop(self):
-        #print("checkpoint 1")
         self.go_to_home_configuration()
 
         start_time = time.time()
         integral_error=0
         while self.should_continue:
-            #print("checkpoint 3")
             # --------------------------------------------------------------------------
             # Step 1 - Get feedback
             # --------------------------------------------------------------------------
@@ -137,7 +133,6 @@ class InverseDynamicsController:
 
             # Save for plotting
             self.joint_position_history.append(q_rad)
-            # self.joint_position_history.append(qdot_rad_per_s)
             self.time_stamps.append(time.time() - start_time)
             # --------------------------------------------------------------------------
 
@@ -151,38 +146,29 @@ class InverseDynamicsController:
                 return
             # --------------------------------------------------------------------------
 
-
             # --------------------------------------------------------------------------
             # Step 3 - Outer Control Loop
             # --------------------------------------------------------------------------
             # Position Error
             q_error = self.q_desired_rad - q_rad
-            #print("Position Error")
-            #print(q_error)
 
-            #Velocity Error
+            # Velocity Error
             qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
-            #print("Velocity Error")
-            #print(qdot_error)
 
+            # Integral Error for Steady State
             integral_error += q_error * self.control_period_s
 
-            y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error)+ self.qddot_desired_rad_per_s2
+            y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
             # --------------------------------------------------------------------------
-
 
             # --------------------------------------------------------------------------
             # Step 4 - Inner Control Loop
             # --------------------------------------------------------------------------
             #Inertia Matrix
             B_q = self.compute_inertia_matrix(q_rad)
-            #print("B_q @ y")
-            #print(B_q @ y)
 
             #Nonlinear Components
-            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) - self.calc_gravity_compensation_torque(q_rad)
-            #print("n")
-            #print(n)
+            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
 
             #Torque Output Controls
             u = (B_q @ y) + n
@@ -192,8 +178,7 @@ class InverseDynamicsController:
             # --------------------------------------------------------------------------
             # Step 5 - Command control action
             # --------------------------------------------------------------------------
-            # This code converts the torque control action into a PWM command using a
-            # model of the dynamixel motors
+            # Converts the torque control action into a PWM command
             pwm_command = self.motor_model.calc_pwm_command(u)
 
             self.motor_group.pwm = {
@@ -204,10 +189,7 @@ class InverseDynamicsController:
             }
             # --------------------------------------------------------------------------
 
-            # Print current position in degrees
-            #print("q [deg]:", np.degrees(q_rad))
-
-            # This code helps this while loop run at a fixed frequency
+            # Creates fixed frequency for while loop
             self.loop_manager.sleep()
 
         self.stop()
@@ -220,7 +202,7 @@ class InverseDynamicsController:
     def signal_handler(self, *_):
         self.stop()
 
-    def compute_inertia_matrix( #Matrix verified with chatGPT and double checked for correctness
+    def compute_inertia_matrix(
         self, joint_positions_rad: NDArray[np.double]
     ) -> NDArray[np.double]:
         q1, q2, q3 = joint_positions_rad
@@ -250,7 +232,7 @@ class InverseDynamicsController:
 
         return B_q
 
-    def compute_coriolis_matrix( #Matrix verified with ChatGPT and double checked for correctness
+    def compute_coriolis_matrix(
         self, joint_positions_rad, joint_velocities_rad: NDArray[np.double]
     ) -> NDArray[np.double]:
         q1, q2, q3 = joint_positions_rad
@@ -295,7 +277,7 @@ class InverseDynamicsController:
 
         print(g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3))))
 
-        return -np.array(
+        return np.array(
             [
                 g*(m1*lc1*cos(q1) + m2*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
                 g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3)) - 0.01),
@@ -329,7 +311,7 @@ class InverseDynamicsController:
                     should_continue_loop = True
                     break
         
-        #print("checkpoint 2")
+        # Waits 2 seconds before continuing
         time.sleep(2)
         
         # Set PWM Mode (i.e. voltage control)
@@ -340,6 +322,7 @@ class InverseDynamicsController:
 if __name__ == "__main__":
     
     # Inverse Kinematics
+    # Input end effector x, y, and tilt angle
     def endeff2joints(x, y, tilt):
 
         tilt = np.deg2rad(tilt)
@@ -354,6 +337,7 @@ if __name__ == "__main__":
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
         theta3 = 2*np.pi - (theta1A + theta1B) - theta2 + tilt
 
+        # Flips motors (orientation)
         theta1 = 2*np.pi - theta1
         theta2 = 2*np.pi - theta2
         theta3 = 2*np.pi - theta3
@@ -362,19 +346,13 @@ if __name__ == "__main__":
     
     # Initial Position
     q_initial = endeff2joints(0.18,0.05,0)
-    print("home position")
-    print(q_initial)
     # Desired Position
     q_desired = endeff2joints(0.3,0.05,0)
-    # Final Position
-    #q_final = endeff2joints(0.3,0.05,10)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
     # Desired Joint Velocities
     qdot_desired = [0, 0, 0]
-    # Final Joint Velocities
-    #qdot_final = [0, 0, 0]
 
     # Desired Joint Acceleration
     qddot_desired = [0, 0, 0]
