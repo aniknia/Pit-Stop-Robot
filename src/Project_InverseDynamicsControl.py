@@ -462,6 +462,6 @@ if __name__ == "__main__":
         ax.legend()
 
     plt.tight_layout()
-    fig.savefig(position_plot.png)
+    fig.savefig("position_plot.png")
     # ----------------------------------------------------------------------------------
     plt.show()
