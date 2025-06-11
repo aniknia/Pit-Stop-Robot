@@ -289,6 +289,8 @@ class InverseDynamicsController:
         l1, l2 = self.l1, self.l2
         lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
 
+        print(g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3))))
+
         return -np.array(
             [
                 g*(m1*lc1*cos(q1) + m2*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
