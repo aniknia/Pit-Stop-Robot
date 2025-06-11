@@ -433,38 +433,78 @@ if __name__ == "__main__":
     ax_motor1.set_ylabel("Angle [deg]")
     ax_motor2.set_ylabel("Angle [deg]")
 
-    # Setpoint lines for each motor
-    for ax, motor_idx in zip([ax_motor0, ax_motor1, ax_motor2], range(3)):
-        ax.axhline(
-            math.degrees(controller.q_desired_rad[motor_idx]), 
-            ls="--", 
-            color="red", 
-            label="Setpoint"
-        )
-        ax.axhline(
-            math.degrees(controller.q_desired_rad[motor_idx]) - 1, 
-            ls=":", 
-            color="blue",
-            label="Convergence Bound"
-        )
-        ax.axhline(
-            math.degrees(controller.q_desired_rad[motor_idx]) + 1, 
-            ls=":", 
-            color="blue"
-        )
-        ax.axvline(1.5, ls=":", color="purple", label="Transition Time")
+    ax_motor0.axhline(
+        math.degrees(controller.q_desired_rad[0]), 
+        ls="--", 
+        color="red", 
+        label="Setpoint"
+    )
+    ax_motor1.axhline(
+        math.degrees(controller.q_desired_rad[1]), 
+        ls="--", 
+        color="red", 
+        label="Setpoint"
+    )
+    ax_motor2.axhline(
+        math.degrees(controller.q_desired_rad[1]), 
+        ls="--", 
+        color="red", 
+        label="Setpoint"
+    )
+    ax_motor0.axhline(
+        math.degrees(controller.q_desired_rad[0]) - 1, ls=":", color="blue"
+    )
+    ax_motor0.axhline(
+        math.degrees(controller.q_desired_rad[0]) + 1, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
+    ax_motor0.axvline(1.5, ls=":", color="purple")
+    ax_motor1.axhline(
+        math.degrees(controller.q_desired_rad[1]) - 1, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
+    ax_motor1.axhline(
+        math.degrees(controller.q_desired_rad[1]) + 1, ls=":", color="blue"
+    )
+    ax_motor1.axvline(1.5, ls=":", color="purple")
+    ax_motor2.axhline(
+        math.degrees(controller.q_desired_rad[1]) - 1, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
+    ax_motor2.axhline(
+        math.degrees(controller.q_desired_rad[1]) + 1, ls=":", color="blue"
+    )
+    ax_motor2.axvline(1.5, ls=":", color="purple")
 
     # Plot motor angle trajectories
-    for ax, motor_idx in zip([ax_motor0, ax_motor1, ax_motor2], range(3)):
-        ax.plot(
-            time_stamps,
-            joint_positions[motor_idx],
-            color="black",
-            label="Motor Angle Trajectory",
-        )
-        ax.legend()
+    ax_motor0.plot(
+        time_stamps,
+        joint_positions[0],
+        color="black",
+        label="Motor Angle Trajectory",
+    )
+    ax_motor1.plot(
+        time_stamps,
+        joint_positions[1],
+        color="black",
+        label="Motor Angle Trajectory",
+    )
+    ax_motor2.plot(
+        time_stamps,
+        joint_positions[1],
+        color="black",
+        label="Motor Angle Trajectory",
+    )
+    ax_motor0.legend()
+    ax_motor1.legend()
+    ax_motor2.legend()
 
-    plt.tight_layout()
-    fig.savefig("position_plot.png")
+    fig.savefig("motorplots.png")
     # ----------------------------------------------------------------------------------
     plt.show()
