@@ -337,7 +337,7 @@ class InverseDynamicsController:
 
         # Compute (x0, y0) using forward kinematics for the first two links
         x0 = l1 * np.cos(theta1eff) + l2 * np.cos(theta2eff)
-        y0 = l1 * np.sin(theta1eff) + l2 * np.sin(theta2eff)
+        y0 = l1 * np.sin(theta1eff) - l2 * np.sin(theta2eff)
         
         # Compute tilt
         tilt = (theta1eff + theta2 + theta3) - 2*np.pi
