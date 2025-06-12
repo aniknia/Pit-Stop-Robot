@@ -192,6 +192,8 @@ class InverseDynamicsController:
             # Creates fixed frequency for while loop
             self.loop_manager.sleep()
 
+        self.go_to_down_configuration()
+
         self.stop()
 
     def stop(self):
@@ -319,6 +321,35 @@ class InverseDynamicsController:
         self.motor_group.set_mode(DynamixelMode.PWM)
         self.motor_group.enable_torque()
 
+    def go_to_down_configuration(self):
+        """Puts the motors in 'down' position"""
+        self.should_continue = True
+        self.motor_group.disable_torque()
+        self.motor_group.set_mode(DynamixelMode.Position)
+        self.motor_group.enable_torque()
+
+        # Move to down position
+        home_positions_rad = {
+            dynamixel_id: [180,180,180]
+            for i, dynamixel_id in enumerate(self.motor_group.dynamixel_ids)
+        }
+        
+        self.motor_group.angle_rad = home_positions_rad
+        time.sleep(0.5)
+        abs_tol = math.radians(2.0)
+
+        should_continue_loop = True
+        while should_continue_loop:
+            should_continue_loop = False
+            q_rad = self.motor_group.angle_rad
+            for dxl_id in home_positions_rad:
+                if abs(home_positions_rad[dxl_id] - q_rad[dxl_id]) > abs_tol:
+                    should_continue_loop = True
+                    break
+        
+        # Waits 2 seconds before continuing
+        time.sleep(2)
+
 if __name__ == "__main__":
     
     # Inverse Kinematics
@@ -363,7 +394,7 @@ if __name__ == "__main__":
                    [0, 0, 0]])
 
     # Derivative Gain
-    K_D = np.array([[0, 0, 0],
+    K_D = np.array([[5, 0, 0],
                    [0, 0, 0],
                    [0, 0, 0]])
     
