@@ -1,5 +1,4 @@
 import math
-import signal
 import time
 import sys  # for exiting if sim connection fails
 from collections import deque
@@ -8,6 +7,7 @@ from datetime import datetime
 
 import numpy as np
 import sim  # CoppeliaSim Legacy Remote API
+import simConst
 from matplotlib import pyplot as plt
 from numpy.typing import NDArray
 # Linkage Lengths
@@ -126,7 +126,7 @@ class InverseDynamicsController:
         self.joint_position_history = deque()
         self.time_stamps = deque()
         # ------------------------------------------------------------------------------
-# Manipulator Parameters
+        # Manipulator Parameters
         # ------------------------------------------------------------------------------
         # Density PLA, 30%
         rho = 1250*0.3 #[kg/m^3]
@@ -141,66 +141,66 @@ class InverseDynamicsController:
         self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2 #[kg]
         self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2 #[kg]
         # --------------------------------------------------------------------------
-# Motor Communication (Simulated Motor Group)
-# --------------------------------------------------------------------------
+        # Motor Communication (Simulated Motor Group)
+        # --------------------------------------------------------------------------
         self.motor_group = motor_group  # ✅ Keep this; now it's your SimulatedMotorGroup
-# --------------------------------------------------------------------------
+                # --------------------------------------------------------------------------
 
-def start_control_loop(self):
-    self.go_to_home_configuration()  # ✅ Assumes this method works with simulated motors
+    def start_control_loop(self):
+        self.go_to_home_configuration()  # ✅ Assumes this method works with simulated motors
 
-    start_time = time.time()
-    integral_error = 0
+        start_time = time.time()
+        integral_error = 0
 
-    while self.should_continue:
-        # --------------------------------------------------------------------------
-        # Step 1 - Get feedback
-        # --------------------------------------------------------------------------
-        # ✅ Simulated Joint Positions
-        q_rad = np.asarray(list(self.motor_group.angle_rad.values()))
+        while self.should_continue:
+            # --------------------------------------------------------------------------
+            # Step 1 - Get feedback
+            # --------------------------------------------------------------------------
+            # ✅ Simulated Joint Positions
+            q_rad = np.asarray(list(self.motor_group.angle_rad.values()))
 
-        # ✅ Simulated Velocities (estimated in SimulatedMotorGroup)
-        qdot_rad_per_s = np.asarray(list(self.motor_group.velocity_rad_per_s.values()))
+            # ✅ Simulated Velocities (estimated in SimulatedMotorGroup)
+            qdot_rad_per_s = np.asarray(list(self.motor_group.velocity_rad_per_s.values()))
 
-        # ✅ Save for plotting
-        self.joint_position_history.append(q_rad)
-        self.time_stamps.append(time.time() - start_time)
-        # --------------------------------------------------------------------------
-# Step 2 - Check termination criterion
-        if self.time_stamps[-1] - self.time_stamps[0] > self.max_duration_s:
+            # ✅ Save for plotting
+            self.joint_position_history.append(q_rad)
+            self.time_stamps.append(time.time() - start_time)
+            # --------------------------------------------------------------------------
+                # Step 2 - Check termination criterion
+            if self.time_stamps[-1] - self.time_stamps[0] > self.max_duration_s:
+                self.stop()
+                return
+
+                # Step 3 - Outer Control Loop
+            q_error = self.q_desired_rad - q_rad
+            qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
+            integral_error += q_error * self.control_period_s
+
+            y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
+
+                # Step 4 - Inner Control Loop
+            B_q = self.compute_inertia_matrix(q_rad)
+            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
+            u = (B_q @ y) + n
+
+                # Step 5 - Command control action
+            pwm_command = self.motor_model.calc_pwm_command(u)
+
+                # ✅ This works with SimulatedMotorGroup since we mimic `.pwm` setter
+            self.motor_group.pwm = {
+                dxl_id: pwm_value
+                for dxl_id, pwm_value in zip(
+                    self.motor_group.dynamixel_ids, pwm_command, strict=True
+                )
+            }
+
+                # Enforce timing
+            self.loop_manager.sleep()
+
+                # On exit
             self.stop()
-            return
 
-# Step 3 - Outer Control Loop
-        q_error = self.q_desired_rad - q_rad
-        qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
-        integral_error += q_error * self.control_period_s
-
-        y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
-
-# Step 4 - Inner Control Loop
-        B_q = self.compute_inertia_matrix(q_rad)
-        n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
-        u = (B_q @ y) + n
-
-# Step 5 - Command control action
-        pwm_command = self.motor_model.calc_pwm_command(u)
-
-# ✅ This works with SimulatedMotorGroup since we mimic `.pwm` setter
-        self.motor_group.pwm = {
-            dxl_id: pwm_value
-            for dxl_id, pwm_value in zip(
-                self.motor_group.dynamixel_ids, pwm_command, strict=True
-            )
-        }
-
-# Enforce timing
-        self.loop_manager.sleep()
-
-# On exit
-        self.stop()
-
-        def stop(self):
+    def stop(self):
             self.should_continue = False
             time.sleep(2 * self.control_period_s)
             self.motor_group.disable_torque()
@@ -373,41 +373,48 @@ if __name__ == "__main__":
                    [0, 0, 0]])
     import sim  # Make sure sim.py is available
 
-# Connect to CoppeliaSim
-print("Connecting to CoppeliaSim...")
-sim.simxFinish(-1)  # Close any previous connections
-client_id = sim.simxStart('127.0.0.1', 19997, True, True, 5000, 5)
+    # Connect to CoppeliaSim
+    print("Connecting to CoppeliaSim...")
+    sim.simxFinish(-1)  # Close any previous connections
+    client_id = sim.simxStart('127.0.0.1', 19997, True, True, 5000, 5)
+    print(client_id)
 
-if client_id == -1:
-    print("❌ Failed to connect to CoppeliaSim.")
-    sys.exit()
-print("✅ Connected to CoppeliaSim.")
+    time.sleep(1)
 
-# Define joint names matching the CoppeliaSim scene
-joint_names = ["/Revolute_joint1", "/Revolute_joint2", "/Revolute_joint3"]
+    if client_id == -1:
+        print("❌ Failed to connect to CoppeliaSim.")
+        sys.exit()
+    else:
+        print("✅ Connected to CoppeliaSim.")
 
-# Start joint position streaming (important for velocity estimation later)
-for name in joint_names:
-    err_code, handle = sim.simxGetObjectHandle(client_id, name, sim.simx_opmode_blocking)
-    if err_code != sim.simx_return_ok:
-        print(f"Failed to get handle for {name}")
-    sim.simxGetJointPosition(client_id, handle, sim.simx_opmode_streaming)
+        res, joint_names = sim.simxGetObjects(client_id, sim.sim_handle_all, sim.simx_opmode_blocking)
+        print(res,joint_names)
 
-# Create simulated motor group object
-motor_group = SimulatedMotorGroup(joint_names, client_id)
+        # Define joint names matching the CoppeliaSim scene
+        #joint_names = ["Revolute_joint1", "Revolute_joint2", "Revolute_joint3"]
 
-# Make controller
-controller = InverseDynamicsController(
-    motor_group=motor_group,
-    K_P=K_P,
-    K_D=K_D,
-    K_I=K_I,
-    q_initial_deg=q_initial,
-    q_desired_deg=q_desired,
-    qdot_initial_deg_per_s=qdot_initial,
-    qdot_desired_deg_per_s=qdot_desired,
-    qddot_desired_deg_per_s2=qddot_desired
-)
+        # Start joint position streaming (important for velocity estimation later)
+        for name in joint_names:
+            err_code, handle = sim.simxGetObjectHandle(client_id, name, sim.simx_opmode_blocking)
+            if err_code != sim.simx_return_ok:
+                print(f"Failed to get handle for {name}")
+            sim.simxGetJointPosition(client_id, handle, sim.simx_opmode_streaming)
 
-# Run controller
-controller.start_control_loop()
+        # Create simulated motor group object
+        motor_group = SimulatedMotorGroup(joint_names, client_id)
+
+        # Make controller
+        controller = InverseDynamicsController(
+            motor_group=motor_group,
+            K_P=K_P,
+            K_D=K_D,
+            K_I=K_I,
+            q_initial_deg=q_initial,
+            q_desired_deg=q_desired,
+            qdot_initial_deg_per_s=qdot_initial,
+            qdot_desired_deg_per_s=qdot_desired,
+            qddot_desired_deg_per_s2=qddot_desired
+        )
+
+        # Run controller
+        controller.start_control_loop()
