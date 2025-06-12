@@ -37,7 +37,7 @@ class InverseDynamicsController:
         qdot_initial_deg_per_s: Sequence[float],
         qdot_desired_deg_per_s: Sequence[float],
         qddot_desired_deg_per_s2: Sequence[float],
-        max_duration_s: float = 8.0,
+        max_duration_s: float = 3.0,
     ):
         # ------------------------------------------------------------------------------
         # Setting up Controller Related Variables
@@ -66,6 +66,7 @@ class InverseDynamicsController:
 
         self.joint_position_history = deque()
         self.time_stamps = deque()
+        self.run_stamps = deque()
         self.endeff_position_history = deque()
         # ------------------------------------------------------------------------------
 
@@ -120,76 +121,85 @@ class InverseDynamicsController:
     def start_control_loop(self):
         self.go_to_home_configuration()
 
+        positions = [self.q_desired_rad, self.q_initial_rad, self.q_desired_rad, self.q_initial_rad]
+        velocities = [self.qdot_desired_rad_per_s, self.qdot_initial_rad_per_s, self.qdot_desired_rad_per_s, self.qdot_initial_rad_per_s]
+
         start_time = time.time()
-        integral_error=0
-        while self.should_continue:
-            # --------------------------------------------------------------------------
-            # Step 1 - Get feedback
-            # --------------------------------------------------------------------------
-            # Position Feedback (Actual)
-            q_rad = np.asarray(list(self.motor_group.angle_rad.values()))
 
-            # Velocity Feedback (Actual)
-            qdot_rad_per_s = np.asarray(list(self.motor_group.velocity_rad_per_s.values()))
+        for x in positions:
 
-            # Save for plotting
-            self.joint_position_history.append(q_rad)
-            self.endeff_position_history.append(self.joints2endeff(q_rad))
-            self.time_stamps.append(time.time() - start_time)
-            # --------------------------------------------------------------------------
+            run_time = time.time()
+            integral_error=0
 
+            while self.should_continue:
+                # --------------------------------------------------------------------------
+                # Step 1 - Get feedback
+                # --------------------------------------------------------------------------
+                # Position Feedback (Actual)
+                q_rad = np.asarray(list(self.motor_group.angle_rad.values()))
 
-            # --------------------------------------------------------------------------
-            # Step 2 - Check termination criterion
-            # --------------------------------------------------------------------------
-            # Stop after max_duration_s seconds
-            if self.time_stamps[-1] - self.time_stamps[0] > self.max_duration_s:
-                self.stop()
-                return
-            # --------------------------------------------------------------------------
+                # Velocity Feedback (Actual)
+                qdot_rad_per_s = np.asarray(list(self.motor_group.velocity_rad_per_s.values()))
 
-            # --------------------------------------------------------------------------
-            # Step 3 - Outer Control Loop
-            # --------------------------------------------------------------------------
-            # Position Error
-            q_error = self.q_desired_rad - q_rad
-
-            # Velocity Error
-            qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
-
-            # Integral Error for Steady State
-            integral_error += q_error * self.control_period_s
-
-            y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
-            # --------------------------------------------------------------------------
-
-            # --------------------------------------------------------------------------
-            # Step 4 - Inner Control Loop
-            # --------------------------------------------------------------------------
-            #Inertia Matrix
-            B_q = self.compute_inertia_matrix(q_rad)
-
-            #Nonlinear Components
-            n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
-
-            #Torque Output Controls
-            u = (B_q @ y) + n
-            # --------------------------------------------------------------------------
+                # Save for plotting
+                self.joint_position_history.append(q_rad)
+                self.endeff_position_history.append(self.joints2endeff(q_rad))
+                self.time_stamps.append(time.time() - start_time)
+                self.run_stamps.append(time.time() - run_time)
+                # --------------------------------------------------------------------------
 
 
-            # --------------------------------------------------------------------------
-            # Step 5 - Command control action
-            # --------------------------------------------------------------------------
-            # Converts the torque control action into a PWM command
-            pwm_command = self.motor_model.calc_pwm_command(u)
+                # --------------------------------------------------------------------------
+                # Step 2 - Check termination criterion
+                # --------------------------------------------------------------------------
+                # Stop after max_duration_s seconds
+                if self.run_stamps[-1] - self.run_stamps[0] > self.max_duration_s:
+                    self.stop()
+                    return
+                # --------------------------------------------------------------------------
 
-            self.motor_group.pwm = {
-                dxl_id: pwm_value
-                for dxl_id, pwm_value in zip(
-                    self.motor_group.dynamixel_ids, pwm_command, strict=True
-                )
-            }
-            # --------------------------------------------------------------------------
+                # --------------------------------------------------------------------------
+                # Step 3 - Outer Control Loop
+                # --------------------------------------------------------------------------
+                # Position Error
+                q_error = x - q_rad
+
+                # Velocity Error
+                qdot_error = velocities[x] - qdot_rad_per_s
+
+                # Integral Error for Steady State
+                integral_error += q_error * self.control_period_s
+
+                y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
+                # --------------------------------------------------------------------------
+
+                # --------------------------------------------------------------------------
+                # Step 4 - Inner Control Loop
+                # --------------------------------------------------------------------------
+                #Inertia Matrix
+                B_q = self.compute_inertia_matrix(q_rad)
+
+                #Nonlinear Components
+                n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
+
+                #Torque Output Controls
+                u = (B_q @ y) + n
+                # --------------------------------------------------------------------------
+
+
+                # --------------------------------------------------------------------------
+                # Step 5 - Command control action
+                # --------------------------------------------------------------------------
+                # Converts the torque control action into a PWM command
+                pwm_command = self.motor_model.calc_pwm_command(u)
+
+                self.motor_group.pwm = {
+                    dxl_id: pwm_value
+                    for dxl_id, pwm_value in zip(
+                        self.motor_group.dynamixel_ids, pwm_command, strict=True
+                    )
+                }
+                # --------------------------------------------------------------------------
 
             # Creates fixed frequency for while loop
             self.loop_manager.sleep()
