@@ -451,7 +451,7 @@ if __name__ == "__main__":
     # Extract results
     time_stamps = np.asarray(controller.time_stamps)
     joint_positions = np.rad2deg(controller.joint_position_history).T
-    endeff_positions = controller.endeff_position_history.T
+    endeff_positions = np.asarray(controller.endeff_position_history).T
 
     # ----------------------------------------------------------------------------------
     # Plot Results
