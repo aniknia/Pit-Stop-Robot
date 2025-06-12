@@ -126,7 +126,7 @@ class InverseDynamicsController:
 
         start_time = time.time()
 
-        for x in positions:
+        for i, x in enumerate(positions):
 
             run_time = time.time()
             integral_error=0
@@ -165,7 +165,7 @@ class InverseDynamicsController:
                 q_error = x - q_rad
 
                 # Velocity Error
-                qdot_error = velocities[x] - qdot_rad_per_s
+                qdot_error = velocities[i] - qdot_rad_per_s
 
                 # Integral Error for Steady State
                 integral_error += q_error * self.control_period_s
@@ -399,20 +399,19 @@ if __name__ == "__main__":
     qddot_desired = [0, 0, 0]
 
     # Proportional Gain
-    K_P = np.array([[180, 0, 0],
-                   [0, 280, 0],
-                   [0, 0, 0]])
+    K_P = np.array([[229, 0, 0],
+                   [0, 420, 0],
+                   [0, 0, 2200]])
 
     # Derivative Gain
-    K_D = np.array([[16, 0, 0],
-                   [0, 20, 0],
-                   [0, 0, 0]])
+    K_D = np.array([[10, 0, 0],
+                   [0, 60, 0],
+                   [0, 0, 2]])
     
     # Integral Gain
-    K_I = np.array([[480, 0, 0],
-                   [0, 180, 0],
-                   [0, 0, 0]])
-
+    K_I = np.array([[180, 0, 0],
+                   [0, 280, 0],
+                   [0, 0, 420]])
     """ BEFORE ADDING NONLINEAR TERMS
     # Proportional Gain
     K_P = np.array([[3, 0, 0],
