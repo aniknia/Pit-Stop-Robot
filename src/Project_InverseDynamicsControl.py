@@ -327,24 +327,23 @@ class InverseDynamicsController:
         q1, q2, q3 = joint_positions_rad
         #Forward kinematics from joint
 
-        #Flips motors back
-        theta1 = -(q1 - (2*np.pi))
-        theta2 = -(q2 - (2*np.pi))
-        theta3 = -(q3 - (2*np.pi))
+        # Recover theta1, theta2, theta3 (flipped motors)
+        theta1 = 2 * np.pi - q1
+        theta2 = 2 * np.pi - q2
+        theta3 = 2 * np.pi - q3
+        
+        # Compute (x0, y0) using forward kinematics for the first two links
+        x0 = l1 * np.cos(theta1) + l2 * np.cos(theta1 + theta2)
+        y0 = l1 * np.sin(theta1) + l2 * np.sin(theta1 + theta2)
+        
+        # Compute tilt
+        tilt = theta3 + (theta1 + theta2) - 2 * np.pi
+        
+        # Compute end-effector position (x, y)
+        x = x0 + l3 * np.cos(tilt)
+        y = y0 + l3 * np.sin(tilt)
 
-        theta1_eff = theta1 - np.pi
-        theta12 = theta1 - theta2
-
-        x1 = l1 * np.cos(theta1_eff)
-        y1 = l1 * np.sin(theta1_eff)
-
-        x2 = x1 + l2 * np.cos(theta12)
-        y2 = y1 + l2 * np.sin(theta12)
-
-        x_ee = x2 + l3 * np.cos(theta3)
-        y_ee = y2 + l3 * np.sin(theta3)
-
-        return np.rad2deg([x_ee, y_ee])
+        return np.rad2deg([x, y])
 
 if __name__ == "__main__":
     
@@ -385,17 +384,17 @@ if __name__ == "__main__":
     qddot_desired = [0, 0, 0]
 
     # Proportional Gain
-    K_P = np.array([[80, 0, 0],
+    K_P = np.array([[180, 0, 0],
                    [0, 280, 0],
                    [0, 0, 0]])
 
     # Derivative Gain
-    K_D = np.array([[4, 0, 0],
-                   [0, 2, 0],
+    K_D = np.array([[16, 0, 0],
+                   [0, 20, 0],
                    [0, 0, 0]])
     
     # Integral Gain
-    K_I = np.array([[320, 0, 0],
+    K_I = np.array([[480, 0, 0],
                    [0, 180, 0],
                    [0, 0, 0]])
 
@@ -573,6 +572,13 @@ if __name__ == "__main__":
         color="black",
         label="End Effector Position",
     )
+    x_axis.axhline(
+        math.degrees(controller.q_desired_rad[0]), 
+        ls="--", 
+        color="red", 
+        label="Setpoint"
+    )
+    
 
     fig.savefig("end effector positions.png")
 
