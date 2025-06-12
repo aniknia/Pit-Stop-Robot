@@ -29,9 +29,12 @@ class InverseDynamicsController:
     def __init__(
         self,
         motor_group: DynamixelMotorGroup,
-        K_P: NDArray[np.double],
-        K_D: NDArray[np.double],
-        K_I: NDArray[np.double],
+        K_P_out: NDArray[np.double],
+        K_P_in: NDArray[np.double],
+        K_D_out: NDArray[np.double],
+        K_D_in: NDArray[np.double],
+        K_I_out: NDArray[np.double],
+        K_I_in: NDArray[np.double],
         q_initial_deg: Sequence[float],
         q_desired_deg: Sequence[float],
         qdot_initial_deg_per_s: Sequence[float],
@@ -54,9 +57,12 @@ class InverseDynamicsController:
         self.qddot_desired_rad_per_s2 = np.deg2rad(qddot_desired_deg_per_s2)
 
         # Gains
-        self.K_P = np.asarray(K_P, dtype=np.double)
-        self.K_D = np.asarray(K_D, dtype=np.double)
-        self.K_I = np.asarray(K_I, dtype=np.double)
+        self.K_P_out = np.asarray(K_P_out, dtype=np.double)
+        self.K_P_in = np.asarray(K_P_in, dtype=np.double)
+        self.K_D_out = np.asarray(K_D_out, dtype=np.double)
+        self.K_D_in = np.asarray(K_D_in, dtype=np.double)
+        self.K_I_out = np.asarray(K_I_out, dtype=np.double)
+        self.K_I_in = np.asarray(K_I_in, dtype=np.double)
 
         self.control_freq_Hz = 30.0
         self.max_duration_s = float(max_duration_s)
@@ -123,6 +129,9 @@ class InverseDynamicsController:
 
         positions = [self.q_desired_rad, self.q_initial_rad, self.q_desired_rad, self.q_initial_rad]
         velocities = [self.qdot_desired_rad_per_s, self.qdot_initial_rad_per_s, self.qdot_desired_rad_per_s, self.qdot_initial_rad_per_s]
+        gains_kp = [self.K_P_out, self.K_P_in, self.K_P_out, self.K_P_in]
+        gains_kd = [self.K_D_out, self.K_D_in, self.K_D_out, self.K_D_in]
+        gains_ki = [self.K_I_out, self.K_I_in, self.K_I_out, self.K_I_in]
 
         start_time = time.time()
 
@@ -169,7 +178,7 @@ class InverseDynamicsController:
                 # Integral Error for Steady State
                 integral_error += q_error * self.control_period_s
 
-                y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
+                y = (gains_kp[i] @ q_error) + (gains_kd[i] @ qdot_error) + (gains_ki[i] @ integral_error) + self.qddot_desired_rad_per_s2
                 # --------------------------------------------------------------------------
 
                 # --------------------------------------------------------------------------
@@ -200,8 +209,8 @@ class InverseDynamicsController:
                 }
                 # --------------------------------------------------------------------------
 
-            # Creates fixed frequency for while loop
-            self.loop_manager.sleep()
+                # Creates fixed frequency for while loop
+                self.loop_manager.sleep()
 
         self.stop()
 
@@ -398,17 +407,29 @@ if __name__ == "__main__":
     qddot_desired = [0, 0, 0]
 
     # Proportional Gain
-    K_P = np.array([[229, 0, 0],
+    K_P_out = np.array([[229, 0, 0],
+                   [0, 420, 0],
+                   [0, 0, 2200]])
+    
+    K_P_in = np.array([[229, 0, 0],
                    [0, 420, 0],
                    [0, 0, 2200]])
 
     # Derivative Gain
-    K_D = np.array([[10, 0, 0],
+    K_D_out = np.array([[10, 0, 0],
+                   [0, 60, 0],
+                   [0, 0, 2]])
+    
+    K_D_in = np.array([[10, 0, 0],
                    [0, 60, 0],
                    [0, 0, 2]])
     
     # Integral Gain
-    K_I = np.array([[180, 0, 0],
+    K_I_out = np.array([[180, 0, 0],
+                   [0, 280, 0],
+                   [0, 0, 420]])
+    
+    K_I_in = np.array([[180, 0, 0],
                    [0, 280, 0],
                    [0, 0, 420]])
     
@@ -446,9 +467,12 @@ if __name__ == "__main__":
     # Make controller
     controller = InverseDynamicsController(
         motor_group=motor_group,
-        K_P=K_P,
-        K_D=K_D,
-        K_I=K_I,
+        K_P_out=K_P_out,
+        K_P_in=K_P_in,
+        K_D_out=K_D_out,
+        K_D_in=K_D_in,
+        K_I_out=K_I_out,
+        K_I_in=K_I_in,
         q_initial_deg=q_initial,
         q_desired_deg=q_desired,
         qdot_initial_deg_per_s=qdot_initial,
@@ -475,9 +499,9 @@ if __name__ == "__main__":
 
     # Label Plots
     fig.suptitle(f"Motor Angles vs Time")
-    ax_motor0.set_title(f"Motor Joint 0 (KP: {K_P[0,0]} KD: {K_D[0,0]} KI: {K_I[0,0]})")
-    ax_motor1.set_title(f"Motor Joint 1 (KP: {K_P[1,1]} KD: {K_D[1,1]} KI: {K_I[1,1]})")
-    ax_motor2.set_title(f"Motor Joint 2 (KP: {K_P[2,2]} KD: {K_D[2,2]} KI: {K_I[2,2]})")
+    ax_motor0.set_title(f"Motor Joint 0 (KP: {K_P_out[0,0]}, {K_P_in[0,0]} KD: {K_D_out[0,0]}, {K_D_in[0,0]} KI: {K_I_out[0,0]}, {K_I_in[0,0]})")
+    ax_motor1.set_title(f"Motor Joint 1 (KP: {K_P_out[1,1]}, {K_P_in[1,1]} KD: {K_D_out[1,1]}, {K_D_in[1,1]} KI: {K_I_out[1,1]}, {K_I_in[1,1]})")
+    ax_motor2.set_title(f"Motor Joint 2 (KP: {K_P_out[2,2]}, {K_P_in[2,2]} KD: {K_D_out[2,2]}, {K_D_in[2,2]} KI: {K_I_out[2,2]}, {K_I_in[2,2]})")
 
     ax_motor2.set_xlabel("Time [s]")
 
