@@ -406,32 +406,33 @@ if __name__ == "__main__":
     # Desired Joint Acceleration
     qddot_desired = [0, 0, 0]
 
-    # Proportional Gain
-    K_P_out = np.array([[229, 0, 0],
+    # Proportional Gain desired
+    K_P_out = np.array([[212, 0, 0],
                    [0, 420, 0],
                    [0, 0, 2200]])
+    # Derivative Gain desired
+    K_D_out = np.array([[13.8, 0, 0],
+                   [0, 60, 0],
+                   [0, 0, 2]])
+    # Integral Gain desired
+    K_I_out = np.array([[200, 0, 0],
+                   [0, 280, 0],
+                   [0, 0, 420]])
     
-    K_P_in = np.array([[229, 0, 0],
-                   [0, 420, 0],
-                   [0, 0, 2200]])
+    # Proportional Gain Initial
+    K_P_in = np.array([[850, 0, 0],
+                   [0, 90, 0],
+                   [0, 0, 2600]])
 
-    # Derivative Gain
-    K_D_out = np.array([[10, 0, 0],
-                   [0, 60, 0],
+    # Derivative Gain Initial
+    K_D_in = np.array([[100, 0, 0],
+                   [0, 8.6, 0],
                    [0, 0, 2]])
     
-    K_D_in = np.array([[10, 0, 0],
-                   [0, 60, 0],
-                   [0, 0, 2]])
-    
-    # Integral Gain
-    K_I_out = np.array([[180, 0, 0],
-                   [0, 280, 0],
-                   [0, 0, 420]])
-    
-    K_I_in = np.array([[180, 0, 0],
-                   [0, 280, 0],
-                   [0, 0, 420]])
+    # Integral Gain Initial
+    K_I_in = np.array([[90, 0, 0],
+                   [0, 3200, 0],
+                   [0, 0, 800]])
     
     """ BEFORE ADDING NONLINEAR TERMS
     # Proportional Gain
