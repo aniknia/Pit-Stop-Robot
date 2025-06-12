@@ -66,6 +66,7 @@ class InverseDynamicsController:
 
         self.joint_position_history = deque()
         self.time_stamps = deque()
+        self.endeff_position_history = deque()
         # ------------------------------------------------------------------------------
 
 
@@ -133,6 +134,7 @@ class InverseDynamicsController:
 
             # Save for plotting
             self.joint_position_history.append(q_rad)
+            self.endeff_position_history.append(self.joints2endeff(q_rad))
             self.time_stamps.append(time.time() - start_time)
             # --------------------------------------------------------------------------
 
@@ -191,8 +193,6 @@ class InverseDynamicsController:
 
             # Creates fixed frequency for while loop
             self.loop_manager.sleep()
-
-        self.go_to_down_configuration()
 
         self.stop()
 
@@ -321,34 +321,30 @@ class InverseDynamicsController:
         self.motor_group.set_mode(DynamixelMode.PWM)
         self.motor_group.enable_torque()
 
-    def go_to_down_configuration(self):
-        """Puts the motors in 'down' position"""
-        self.should_continue = True
-        self.motor_group.disable_torque()
-        self.motor_group.set_mode(DynamixelMode.Position)
-        self.motor_group.enable_torque()
+    def joints2endeff(
+        self, joint_positions_rad: NDArray[np.double]
+    ) -> NDArray[np.double]:
+        q1, q2, q3 = joint_positions_rad
+        #Forward kinematics from joint
 
-        # Move to down position
-        home_positions_rad = {
-            dynamixel_id: [180,180,180]
-            for i, dynamixel_id in enumerate(self.motor_group.dynamixel_ids)
-        }
-        
-        self.motor_group.angle_rad = home_positions_rad
-        time.sleep(0.5)
-        abs_tol = math.radians(2.0)
+        #Flips motors back
+        theta1 = -(q1 - (2*np.pi))
+        theta2 = -(q2 - (2*np.pi))
+        theta3 = -(q3 - (2*np.pi))
 
-        should_continue_loop = True
-        while should_continue_loop:
-            should_continue_loop = False
-            q_rad = self.motor_group.angle_rad
-            for dxl_id in home_positions_rad:
-                if abs(home_positions_rad[dxl_id] - q_rad[dxl_id]) > abs_tol:
-                    should_continue_loop = True
-                    break
-        
-        # Waits 2 seconds before continuing
-        time.sleep(2)
+        theta1_eff = theta1 - np.pi
+        theta12 = theta1 - theta2
+
+        x1 = l1 * np.cos(theta1_eff)
+        y1 = l1 * np.sin(theta1_eff)
+
+        x2 = x1 + l2 * np.cos(theta12)
+        y2 = y1 + l2 * np.sin(theta12)
+
+        x_ee = x2 + l3 * np.cos(theta3)
+        y_ee = y2 + l3 * np.sin(theta3)
+
+        return np.rad2deg([x_ee, y_ee])
 
 if __name__ == "__main__":
     
@@ -369,11 +365,11 @@ if __name__ == "__main__":
         theta3 = 2*np.pi - (theta1A + theta1B) - theta2 + tilt
 
         # Flips motors (orientation)
-        theta1 = 2*np.pi - theta1
-        theta2 = 2*np.pi - theta2
-        theta3 = 2*np.pi - theta3
+        q1 = 2*np.pi - theta1
+        q2 = 2*np.pi - theta2
+        q3 = 2*np.pi - theta3
 
-        return np.rad2deg([theta1, theta2, theta3])    
+        return np.rad2deg([q1, q2, q3])
     
     # Initial Position
     q_initial = endeff2joints(0.18,0.05,0)
