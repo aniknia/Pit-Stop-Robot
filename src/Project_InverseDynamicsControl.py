@@ -346,7 +346,7 @@ class InverseDynamicsController:
         x = x0 + l3 * np.cos(tilt)
         y = y0 + l3 * np.sin(tilt)
 
-        return np.rad2deg([x, y])
+        return [x, y]
 
 if __name__ == "__main__":
     
