@@ -371,9 +371,11 @@ if __name__ == "__main__":
         return np.rad2deg([q1, q2, q3])
     
     # Initial Position
-    q_initial = endeff2joints(0.18,0.05,0)
+    q_initial_endeff = [0.18,0.05,0]
+    q_initial = endeff2joints(*q_initial_endeff)
     # Desired Position
-    q_desired = endeff2joints(0.3,0.05,0)
+    q_desired_endeff = [0.3,0.05,0]
+    q_desired = endeff2joints(*q_desired_endeff)
 
     # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
@@ -449,7 +451,7 @@ if __name__ == "__main__":
     # Extract results
     time_stamps = np.asarray(controller.time_stamps)
     joint_positions = np.rad2deg(controller.joint_position_history).T
-    endeff_positions = np.rad2deg(controller.endeff_position_history).T
+    endeff_positions = controller.endeff_position_history.T
 
     # ----------------------------------------------------------------------------------
     # Plot Results
@@ -573,18 +575,17 @@ if __name__ == "__main__":
         label="End Effector Position",
     )
     x_axis.axhline(
-        q_desired[0], 
+        q_desired_endeff[0], 
         ls="--", 
         color="red", 
         label="Setpoint"
     )
     y_axis.axhline(
-        q_desired[1], 
+        q_desired_endeff[1], 
         ls="--", 
         color="red", 
         label="Setpoint"
     )
-    
 
     fig.savefig("end effector positions.png")
 
