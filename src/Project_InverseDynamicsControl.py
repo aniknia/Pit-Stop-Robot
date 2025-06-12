@@ -333,11 +333,11 @@ class InverseDynamicsController:
         theta3 = 2 * np.pi - q3
         
         # Compute (x0, y0) using forward kinematics for the first two links
-        x0 = l1 * np.cos(theta1) + l2 * np.cos(theta1 + theta2)
-        y0 = l1 * np.sin(theta1) + l2 * np.sin(theta1 + theta2)
+        x0 = l1 * np.cos(theta1 - np.pi) + l2 * np.cos((theta1 - np.pi) + theta2)
+        y0 = l1 * np.sin(theta1 - np.pi) + l2 * np.sin((theta1 - np.pi) + theta2)
         
         # Compute tilt
-        tilt = theta3 + (theta1 + theta2) - 2 * np.pi
+        tilt = theta3 + ((theta1 - np.pi) + theta2) - 2 * np.pi
         
         # Compute end-effector position (x, y)
         x = x0 + l3 * np.cos(tilt)
@@ -573,7 +573,13 @@ if __name__ == "__main__":
         label="End Effector Position",
     )
     x_axis.axhline(
-        math.degrees(controller.q_desired_rad[0]), 
+        q_desired[0], 
+        ls="--", 
+        color="red", 
+        label="Setpoint"
+    )
+    y_axis.axhline(
+        q_desired[1], 
         ls="--", 
         color="red", 
         label="Setpoint"
