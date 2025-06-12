@@ -515,17 +515,32 @@ if __name__ == "__main__":
         color="red", 
         label="Setpoint"
     )
+    ax_motor0.axhline(
+        math.degrees(controller.q_initial_rad[0]), 
+        ls="--", 
+        color="red"
+    )
     ax_motor1.axhline(
         math.degrees(controller.q_desired_rad[1]), 
         ls="--", 
         color="red", 
         label="Setpoint"
     )
+    ax_motor1.axhline(
+        math.degrees(controller.q_initial_rad[1]), 
+        ls="--", 
+        color="red"
+    )
     ax_motor2.axhline(
         math.degrees(controller.q_desired_rad[2]), 
         ls="--", 
         color="red", 
         label="Setpoint"
+    )
+    ax_motor2.axhline(
+        math.degrees(controller.q_initial_rad[2]), 
+        ls="--", 
+        color="red"
     )
     ax_motor0.axhline(
         math.degrees(controller.q_desired_rad[0]) - 1, ls=":", color="blue"
