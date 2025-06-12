@@ -1,101 +1,329 @@
 import math
+import signal
 import time
-import numpy as np
-import matplotlib.pyplot as plt
+import sys  # for exiting if sim connection fails
+from collections import deque
+from collections.abc import Sequence
 from datetime import datetime
-import sim  # CoppeliaSim remote API
 
-l1, l2, l3 = 0.15, 0.1, 0.07
+import numpy as np
+import sim  # CoppeliaSim Legacy Remote API
+from matplotlib import pyplot as plt
+from numpy.typing import NDArray
+# Linkage Lengths
+l1, l2, l3 = 0.15, 0.1, .07 #[m]
+
+class SimulatedMotorGroup:
+    def __init__(self, joint_names: list[str], client_id: int):
+        self.client_id = client_id
+        self.joint_names = joint_names
+        self.motor_handles = []
+
+        # Get and store joint handles
+        for name in joint_names:
+            err_code, handle = sim.simxGetObjectHandle(client_id, name, sim.simx_opmode_blocking)
+            if err_code != sim.simx_return_ok:
+                raise RuntimeError(f"Failed to get handle for joint: {name}")
+            self.motor_handles.append(handle)
+            sim.simxGetJointPosition(client_id, handle, sim.simx_opmode_streaming)
+
+        self._last_angles = [0.0] * len(joint_names)
+        self._last_time = time.time()
+
+    @property
+    def angle_rad(self):
+        angles = []
+        for handle in self.motor_handles:
+            err_code, angle = sim.simxGetJointPosition(self.client_id, handle, sim.simx_opmode_buffer)
+            angles.append(angle if err_code == sim.simx_return_ok else 0.0)
+        self._last_angles = angles
+        return {i: angle for i, angle in enumerate(angles)}
+
+    @property
+    def velocity_rad_per_s(self):
+        current_time = time.time()
+        new_angles = self.angle_rad
+        dt = current_time - self._last_time
+        self._last_time = current_time
+        velocities = {
+            i: (new_angles[i] - self._last_angles[i]) / dt
+            for i in new_angles
+        }
+        return velocities
+
+    @property
+    def motor_info(self):
+        return {i: type("MotorInfo", (), {"pwm_limit": 885})() for i in range(len(self.motor_handles))}
+
+    @property
+    def pwm(self):
+        raise NotImplementedError("Use pwm.setter to send position commands.")
+
+    @pwm.setter
+    def pwm(self, pwm_dict):
+        for i, pwm_value in pwm_dict.items():
+            sim.simxSetJointTargetPosition(self.client_id, self.motor_handles[i], pwm_value, sim.simx_opmode_oneshot)
+
+    def disable_torque(self):
+        pass  # Stubbed for compatibility
+
+    def enable_torque(self):
+        pass  # Stubbed for compatibility
+
+    def set_mode(self, mode):
+        pass  # Stubbed for compatibility
+
+class FixedFrequencyLoopManager:
+    def __init__(self, freq_Hz):
+        self.period = 1.0 / freq_Hz
+        self.next_time = time.time() + self.period
+
+    def sleep(self):
+        now = time.time()
+        if self.next_time > now:
+            time.sleep(self.next_time - now)
+        self.next_time += self.period
+
 
 class InverseDynamicsController:
     def __init__(
         self,
-        clientID: int,
-        joint_handles: list,
-        K_P: np.ndarray,
-        K_D: np.ndarray,
-        q_initial_deg: list[float],
-        q_desired_deg: list[float],
-        qdot_initial_deg_per_s: list[float],
-        qdot_desired_deg_per_s: list[float],
-        qddot_desired_deg_per_s2: list[float],
+        motor_group,  # ✅ Accept either SimulatedMotorGroup or DynamixelMotorGroup-like interface
+        K_P: NDArray[np.double],
+        K_D: NDArray[np.double],
+        K_I: NDArray[np.double],
+        q_initial_deg: Sequence[float],
+        q_desired_deg: Sequence[float],
+        qdot_initial_deg_per_s: Sequence[float],
+        qdot_desired_deg_per_s: Sequence[float],
+        qddot_desired_deg_per_s2: Sequence[float],
         max_duration_s: float = 8.0,
     ):
-        # Save simulation-related handles
-        self.clientID = clientID
-        self.joint_handles = joint_handles
-
-        # Save gains and control parameters
-        self.K_P = np.asarray(K_P, dtype=np.double)
-        self.K_D = np.asarray(K_D, dtype=np.double)
+        # Setting up Controller Related Variables
+        # ------------------------------------------------------------------------------
+        # Intial and Desired Positions
         self.q_initial_rad = np.deg2rad(q_initial_deg)
         self.q_desired_rad = np.deg2rad(q_desired_deg)
+
+        # Intial and Desired Velocities
         self.qdot_initial_rad_per_s = np.deg2rad(qdot_initial_deg_per_s)
         self.qdot_desired_rad_per_s = np.deg2rad(qdot_desired_deg_per_s)
+
+        # Intial and Desired Accelerations
         self.qddot_desired_rad_per_s2 = np.deg2rad(qddot_desired_deg_per_s2)
-        self.max_duration_s = max_duration_s
 
-        # For plotting
-        self.joint_position_history = []
-        self.time_stamps = []
+        # Gains
+        self.K_P = np.asarray(K_P, dtype=np.double)
+        self.K_D = np.asarray(K_D, dtype=np.double)
+        self.K_I = np.asarray(K_I, dtype=np.double)
 
-        # Link lengths (same as original)
-        self.l1, self.l2, self.l3 = l1, l2, l3
-    
-        self.joint_position_history = []
-        self.time_stamps = []
+        self.control_freq_Hz = 30.0
+        self.max_duration_s = float(max_duration_s)
+        self.control_period_s = 1 / self.control_freq_Hz
+        self.loop_manager = FixedFrequencyLoopManager(self.control_freq_Hz)
+        self.should_continue = True
+
+        self.joint_position_history = deque()
+        self.time_stamps = deque()
+        # ------------------------------------------------------------------------------
+# Manipulator Parameters
+        # ------------------------------------------------------------------------------
+        # Density PLA, 30%
+        rho = 1250*0.3 #[kg/m^3]
+        # Linkage Lengths
+        self.l1, self.l2, self.l3 = l1, l2, l3 #[m]
+        # Center of Mass Lengths
+        self.lc1, self.lc2, self.lc3 = 0.13, 0.08, 0.05 #[m]
+        # Width of Link
+        self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) #[m]
+        # Masses
+        self.m3 = 0.077 + 0.014*0.3 #[kg]
+        self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2 #[kg]
+        self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2 #[kg]
+        # --------------------------------------------------------------------------
+# Motor Communication (Simulated Motor Group)
+# --------------------------------------------------------------------------
+        self.motor_group = motor_group  # ✅ Keep this; now it's your SimulatedMotorGroup
+# --------------------------------------------------------------------------
 
 def start_control_loop(self):
-    # Go to home configuration
-    self.go_to_home_configuration()
+    self.go_to_home_configuration()  # ✅ Assumes this method works with simulated motors
 
     start_time = time.time()
-    current_time = 0
+    integral_error = 0
 
-    while current_time < self.max_duration_s:
-        # Step 1: Get actual joint positions
-        q_rad = []
-        for handle in self.joint_handles:
-            res, pos = sim.simxGetJointPosition(self.clientID, handle, sim.simx_opmode_blocking)
-            q_rad.append(pos)
-        q_rad = np.array(q_rad)
+    while self.should_continue:
+        # --------------------------------------------------------------------------
+        # Step 1 - Get feedback
+        # --------------------------------------------------------------------------
+        # ✅ Simulated Joint Positions
+        q_rad = np.asarray(list(self.motor_group.angle_rad.values()))
 
-        # Save for plotting
+        # ✅ Simulated Velocities (estimated in SimulatedMotorGroup)
+        qdot_rad_per_s = np.asarray(list(self.motor_group.velocity_rad_per_s.values()))
+
+        # ✅ Save for plotting
         self.joint_position_history.append(q_rad)
         self.time_stamps.append(time.time() - start_time)
+        # --------------------------------------------------------------------------
+# Step 2 - Check termination criterion
+        if self.time_stamps[-1] - self.time_stamps[0] > self.max_duration_s:
+            self.stop()
+            return
 
-        # Step 2: Calculate position error
+# Step 3 - Outer Control Loop
         q_error = self.q_desired_rad - q_rad
+        qdot_error = self.qdot_desired_rad_per_s - qdot_rad_per_s
+        integral_error += q_error * self.control_period_s
 
-        # Use PD control for desired joint positions
-        target_angles = self.q_desired_rad
+        y = (self.K_P @ q_error) + (self.K_D @ qdot_error) + (self.K_I @ integral_error) + self.qddot_desired_rad_per_s2
 
-        # Step 3: Send new target positions to CoppeliaSim
-        for i, handle in enumerate(self.joint_handles):
-            sim.simxSetJointTargetPosition(self.clientID, handle, target_angles[i], sim.simx_opmode_oneshot)
+# Step 4 - Inner Control Loop
+        B_q = self.compute_inertia_matrix(q_rad)
+        n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
+        u = (B_q @ y) + n
 
-        # Wait a bit to let the simulation update
-        time.sleep(0.05)  # 20 Hz loop
-        current_time = time.time() - start_time
+# Step 5 - Command control action
+        pwm_command = self.motor_model.calc_pwm_command(u)
 
-    # After loop, stop simulation
-    sim.simxStopSimulation(self.clientID, sim.simx_opmode_oneshot_wait)
+# ✅ This works with SimulatedMotorGroup since we mimic `.pwm` setter
+        self.motor_group.pwm = {
+            dxl_id: pwm_value
+            for dxl_id, pwm_value in zip(
+                self.motor_group.dynamixel_ids, pwm_command, strict=True
+            )
+        }
 
-def go_to_home_configuration(self):
-    """Moves the simulated arm to the home position."""
-    # Move each joint to its initial (home) angle
-    for i, handle in enumerate(self.joint_handles):
-        sim.simxSetJointTargetPosition(
-            self.clientID,
-            handle,
-            self.q_initial_rad[i],
-            sim.simx_opmode_oneshot
+# Enforce timing
+        self.loop_manager.sleep()
+
+# On exit
+        self.stop()
+
+        def stop(self):
+            self.should_continue = False
+            time.sleep(2 * self.control_period_s)
+            self.motor_group.disable_torque()
+    
+    def signal_handler(self, *_):
+        self.stop()
+
+    def compute_inertia_matrix(
+        self, joint_positions_rad: NDArray[np.double]
+    ) -> NDArray[np.double]:
+        q1, q2, q3 = joint_positions_rad
+
+        m1, m2, m3 = self.m1, self.m2, self.m3
+        l1, l2, l3 = self.l1, self.l2, self.l3
+        lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
+        w1, w2, w3 = self.w1, self.w2, self.w3
+
+        #Moment of Inertia of each link, added these values to the B matrix for 2d rectangular inertia about perpendicular axis
+        I1 = 1/12 * m1 * (l1**2 + w1**2)
+        I2 = 1/12 * m2 * (l2**2 + w2**2)
+        I3 = 1/12 * m3 * (l3**2 + w3**2)
+
+        #Initialize Inertia Matrix
+        B_q = np.zeros((3, 3))
+
+        # Diagonal Terms
+        B_q[0, 0] = m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(q2)) + m3 * (l1**2 + l2**2 + lc3**2 + 2 * l1 * l2 * np.cos(q2) + 2 * l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
+        B_q[1, 1] = m2 * lc2**2 + m3 * (l2**2 + lc3**2 + 2 * l2 * lc3 * np.cos(q3))
+        B_q[2, 2] = m3 * lc3**2
+
+        # Off-diagonal Terms (symmetric)
+        B_q[0, 1] = B_q[1, 0] = m2 * (lc2**2 + l1 * lc2 * np.cos(q2)) + m3 * (l2**2 + lc3**2 + l1 * l2 * np.cos(q2) + l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
+        B_q[0, 2] = B_q[2, 0] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3) + l1 * lc3 * np.cos(q2 + q3))
+        B_q[1, 2] = B_q[2, 1] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3))
+
+        return B_q
+
+    def compute_coriolis_matrix(
+        self, joint_positions_rad, joint_velocities_rad: NDArray[np.double]
+    ) -> NDArray[np.double]:
+        q1, q2, q3 = joint_positions_rad
+        qdot1, qdot2, qdot3 = joint_velocities_rad
+
+        m1, m2, m3 = self.m1, self.m2, self.m3
+        l1, l2 = self.l1, self.l2
+        lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
+
+        #Initialize Inertia Matrix
+        C = np.zeros((3, 3))
+
+        #Christoffel Symbols
+        c12 = m2*l1*lc2
+        c23 = m3*l1*lc3
+        c13 = m3*l1*lc3
+        c123 = m2*l1*lc2 + m3*l1*l2
+
+        #Coriolis matrix, C33 = 0
+        C[0, 0] = -c123*np.sin(q2)*qdot2 - c23*np.sin(q3)*qdot3 - c13*np.sin(q2+q3)*(qdot2+qdot3)
+        C[0, 1] = -c123*np.sin(q2)*(qdot1+qdot2) - c23*np.sin(q3)*qdot3 - c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
+        C[0, 2] = -(c23*np.sin(q3) - c13*np.sin(q2+q3))*(qdot1+qdot2+qdot3)
+        C[1, 0] = c123*np.sin(q2)*qdot1 + c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
+        C[1, 1] = -(c23*np.sin(q3) + c13*np.sin(q2+q3))*qdot3
+        C[1, 2] = -(c23*np.sin(q3) + c13*np.sin(q2+q3))*(qdot1+qdot2+qdot3)
+        C[2, 0] = c23*np.sin(q3)*qdot1 + c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
+        C[2, 1] = c23*np.sin(q3)*qdot2 + c13*np.sin(q2+q3)*(qdot2+qdot3)
+
+        return C
+    def calc_gravity_compensation_torque(
+        self, joint_positions_rad: NDArray[np.double]
+    ) -> NDArray[np.double]:
+        q1, q2, q3 = joint_positions_rad
+      
+        from math import cos
+        g = 9.81
+
+        m1, m2, m3 = self.m1, self.m2, self.m3
+        l1, l2 = self.l1, self.l2
+        lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
+
+        print(g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3))))
+
+        return np.array(
+            [
+                g*(m1*lc1*cos(q1) + m2*(l1*cos(q1) + lc2*cos(q1+q2)) + m3*(l1*cos(q1) + l2*cos(q1+q2) + lc3*cos(q1+q2+q3))),
+                g*(m2*lc2*cos(q1+q2) + m3*(l2*cos(q1+q2) + lc3*cos(q1+q2+q3)) - 0.01),
+                g*m3*lc3*cos(q1+q2+q3)
+            ]
         )
-
-    # Wait for a short period to let the simulator move the joints
-    time.sleep(2)  # Adjust this if needed
-
-def endeff2joints(x, y, tilt):
+    def go_to_home_configuration(self):
+            """Moves simulated joints to the home position."""
+            self.should_continue = True
+    
+            # Prepare dictionary of joint indices and target angles
+            home_positions_rad = {
+                joint_idx: self.q_initial_rad[joint_idx]
+                for joint_idx in self.motor_group.dynamixel_ids
+            }
+    
+            # Send target positions via simulated motor group
+            for joint_idx, pos in home_positions_rad.items():
+                self.motor_group._last_angles[joint_idx] = pos  # track internally
+                self.motor_group.pwm = {joint_idx: pos}         # sends to CoppeliaSim
+    
+            time.sleep(0.5)  # allow simulation time to move
+    
+            # Wait for joints to reach near target
+            abs_tol = math.radians(2.0)
+            should_continue_loop = True
+    
+            while should_continue_loop:
+                should_continue_loop = False
+                q_rad = self.motor_group.angle_rad
+                for joint_idx in home_positions_rad:
+                    if abs(home_positions_rad[joint_idx] - q_rad[joint_idx]) > abs_tol:
+                        should_continue_loop = True
+                        break
+    
+            time.sleep(2)  # allow for stabilization
+if __name__ == "__main__":
+    
+    # Inverse Kinematics
+    # Input end effector x, y, and tilt angle
+    def endeff2joints(x, y, tilt):
 
         tilt = np.deg2rad(tilt)
         
@@ -109,154 +337,77 @@ def endeff2joints(x, y, tilt):
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
         theta3 = 2*np.pi - (theta1A + theta1B) - theta2 + tilt
 
+        # Flips motors (orientation)
         theta1 = 2*np.pi - theta1
         theta2 = 2*np.pi - theta2
         theta3 = 2*np.pi - theta3
 
-        return np.rad2deg([theta1, theta2, theta3])
-# Initial Position
-q_initial = endeff2joints(0.3, 0.05, 0)
-print("home position")
-print(q_initial)
+        return np.rad2deg([theta1, theta2, theta3])    
+    
+    # Initial Position
+    q_initial = endeff2joints(0.18,0.05,0)
+    # Desired Position
+    q_desired = endeff2joints(0.3,0.05,0)
 
-# Desired Position (for example)
-q_desired = endeff2joints(0.3, 0.05, 0)
+    # Initial Joint Velocities
+    qdot_initial = [0, 0, 0]
+    # Desired Joint Velocities
+    qdot_desired = [0, 0, 0]
 
-# Final Position (if used in your motion sequence)
-q_final = endeff2joints(0.3, 0.05, 10)
+    # Desired Joint Acceleration
+    qddot_desired = [0, 0, 0]
 
-# Initial, desired, and final joint velocities
-qdot_initial = [0, 0, 0]
-qdot_desired = [0, 0, 0]
-qdot_final = [0, 0, 0]
+    # Proportional Gain
+    K_P = np.array([[100, 0, 0],
+                   [0, 0, 0],
+                   [0, 0, 0]])
 
-# Desired Joint Acceleration
-qddot_desired = [0, 0, 0]
+    # Derivative Gain
+    K_D = np.array([[0, 0, 0],
+                   [0, 0, 0],
+                   [0, 0, 0]])
+    
+    # Integral Gain
+    K_I = np.array([[0, 0, 0],
+                   [0, 0, 0],
+                   [0, 0, 0]])
+    import sim  # Make sure sim.py is available
 
-#TODO Tune Gains
-# Proportional Gain
-K_P = np.array([[3, 0, 0],
-                [0, 1.85, 0],
-                [0, 0, 1.75]])
+# Connect to CoppeliaSim
+print("Connecting to CoppeliaSim...")
+sim.simxFinish(-1)  # Close any previous connections
+client_id = sim.simxStart('127.0.0.1', 19997, True, True, 5000, 5)
 
-# Derivative Gain
-K_D = np.array([[0.16, 0, 0],
-                [0, 0.04, 0],
-                [0, 0, 0.13]])
+if client_id == -1:
+    print("❌ Failed to connect to CoppeliaSim.")
+    sys.exit()
+print("✅ Connected to CoppeliaSim.")
 
-if __name__ == "__main__":
-    # Connect to CoppeliaSim
-    sim.simxFinish(-1)
-    clientID = sim.simxStart('127.0.0.1', 19997, True, True, 5000, 5)
+# Define joint names matching the CoppeliaSim scene
+joint_names = ["/Revolute_joint1", "/Revolute_joint2", "/Revolute_joint3"]
 
-    if clientID != -1:
-        print("Connected to remote API server")
-        sim.simxStartSimulation(clientID, sim.simx_opmode_oneshot_wait)
+# Start joint position streaming (important for velocity estimation later)
+for name in joint_names:
+    err_code, handle = sim.simxGetObjectHandle(client_id, name, sim.simx_opmode_blocking)
+    if err_code != sim.simx_return_ok:
+        print(f"Failed to get handle for {name}")
+    sim.simxGetJointPosition(client_id, handle, sim.simx_opmode_streaming)
 
-        # Get joint handles
-        joint_names = ['/Revolute_joint1', '/Revolute_joint2', '/Revolute_joint3']
-        joint_handles = []
-        for name in joint_names:
-            res, handle = sim.simxGetObjectHandle(clientID, name, sim.simx_opmode_blocking)
-            joint_handles.append(handle)
+# Create simulated motor group object
+motor_group = SimulatedMotorGroup(joint_names, client_id)
 
-        # Set initial position (home)
-        q_initial_rad = np.deg2rad(q_initial)
-        for i, handle in enumerate(joint_handles):
-            sim.simxSetJointTargetPosition(clientID, handle, q_initial_rad[i], sim.simx_opmode_oneshot)
-        time.sleep(2)  # Let it move to home
+# Make controller
+controller = InverseDynamicsController(
+    motor_group=motor_group,
+    K_P=K_P,
+    K_D=K_D,
+    K_I=K_I,
+    q_initial_deg=q_initial,
+    q_desired_deg=q_desired,
+    qdot_initial_deg_per_s=qdot_initial,
+    qdot_desired_deg_per_s=qdot_desired,
+    qddot_desired_deg_per_s2=qddot_desired
+)
 
-        # Set desired position
-        q_desired_rad = np.deg2rad(q_desired)
-
-        # Start control loop
-        start_time = time.time()
-        current_time = 0
-        joint_position_history = []
-        time_stamps = []
-
-        while current_time < 8.0:  # max duration
-            # Get actual joint positions
-            q_rad = []
-            for handle in joint_handles:
-                res, pos = sim.simxGetJointPosition(clientID, handle, sim.simx_opmode_blocking)
-                q_rad.append(pos)
-            q_rad = np.array(q_rad)
-
-            # Save for plotting
-            joint_position_history.append(q_rad)
-            time_stamps.append(time.time() - start_time)
-
-            # PD control: compute position error
-            q_error = q_desired_rad - q_rad
-
-            # For simulation, just send the desired angles directly
-            target_angles = q_desired_rad
-
-            # Send target angles to CoppeliaSim
-            for i, handle in enumerate(joint_handles):
-                sim.simxSetJointTargetPosition(clientID, handle, target_angles[i], sim.simx_opmode_oneshot)
-
-            time.sleep(0.05)
-            current_time = time.time() - start_time
-
-        # Stop simulation
-        sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
-        sim.simxFinish(clientID)
-        print("Simulation ended")
-
-        # Plotting
-        # After control loop
-        joint_history = np.array(joint_position_history).T  # shape: (3, N)
-        time_stamps = np.array(time_stamps)
-
-# ----------------------------------------------------------------------------------
-# Plot Results
-# ----------------------------------------------------------------------------------
-        date_str = datetime.now().strftime("%d-%m_%H-%M-%S")
-        fig_file_name = f"joint_positions_vs_time_{date_str}.pdf"
-
-# Create figure and axes
-        fig, (ax_motor0, ax_motor1, ax_motor2) = plt.subplots(3, 1, figsize=(10, 12))
-
-# Label Plots
-        fig.suptitle("Joint Angles vs Time")
-        ax_motor0.set_title("Joint 1")
-        ax_motor1.set_title("Joint 2")
-        ax_motor2.set_title("Joint 3")
-
-        ax_motor2.set_xlabel("Time [s]")
-        ax_motor0.set_ylabel("Angle [deg]")
-        ax_motor1.set_ylabel("Angle [deg]")
-        ax_motor2.set_ylabel("Angle [deg]")
-
-# Desired angles (if you want convergence bounds)
-        ax_motor0.axhline(q_desired[0], ls="--", color="red", label="Setpoint")
-        ax_motor1.axhline(q_desired[1], ls="--", color="red", label="Setpoint")
-        ax_motor2.axhline(q_desired[2], ls="--", color="red", label="Setpoint")
-
-        ax_motor0.axhline(q_desired[0] - 1, ls=":", color="blue", label="Convergence Bound")
-        ax_motor0.axhline(q_desired[0] + 1, ls=":", color="blue")
-        ax_motor1.axhline(q_desired[1] - 1, ls=":", color="blue", label="Convergence Bound")
-        ax_motor1.axhline(q_desired[1] + 1, ls=":", color="blue")
-        ax_motor2.axhline(q_desired[2] - 1, ls=":", color="blue", label="Convergence Bound")
-        ax_motor2.axhline(q_desired[2] + 1, ls=":", color="blue")
-
-        ax_motor0.axvline(1.5, ls=":", color="purple")
-        ax_motor1.axvline(1.5, ls=":", color="purple")
-        ax_motor2.axvline(1.5, ls=":", color="purple")
-
-# Plot joint trajectories
-        ax_motor0.plot(time_stamps, np.degrees(joint_history[0]), color="black", label="Joint 1 Trajectory")
-        ax_motor1.plot(time_stamps, np.degrees(joint_history[1]), color="black", label="Joint 2 Trajectory")
-        ax_motor2.plot(time_stamps, np.degrees(joint_history[2]), color="black", label="Joint 3 Trajectory")
-
-        ax_motor0.legend()
-        ax_motor1.legend()
-        ax_motor2.legend()
-
-        fig.savefig("motorplots.png")
-        plt.show()
-
-    else:
-        print("Failed to connect to remote API server")
+# Run controller
+controller.start_control_loop()
