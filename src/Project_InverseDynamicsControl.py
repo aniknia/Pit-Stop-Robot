@@ -583,12 +583,39 @@ if __name__ == "__main__":
         color="red", 
         label="Setpoint"
     )
+    x_axis.axhline(
+        q_desired_endeff[0] - 0.0025, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
+    x_axis.axhline(
+        q_desired_endeff[0] + 0.0025, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
     y_axis.axhline(
         q_desired_endeff[1], 
         ls="--", 
         color="red", 
         label="Setpoint"
     )
+    y_axis.axhline(
+        q_desired_endeff[1] - 0.0025, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
+    y_axis.axhline(
+        q_desired_endeff[1] + 0.0025, 
+        ls=":", 
+        color="blue", 
+        label="Convergence Bound"
+    )
+
+    x_axis.legend()
+    y_axis.legend()
 
     fig.savefig("end effector positions.png")
 
