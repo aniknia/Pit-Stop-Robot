@@ -154,8 +154,7 @@ class InverseDynamicsController:
                 # --------------------------------------------------------------------------
                 # Stop after max_duration_s seconds
                 if self.run_stamps[-1] - self.run_stamps[0] > self.max_duration_s:
-                    self.stop()
-                    return
+                    break
                 # --------------------------------------------------------------------------
 
                 # --------------------------------------------------------------------------
@@ -412,6 +411,7 @@ if __name__ == "__main__":
     K_I = np.array([[180, 0, 0],
                    [0, 280, 0],
                    [0, 0, 420]])
+    
     """ BEFORE ADDING NONLINEAR TERMS
     # Proportional Gain
     K_P = np.array([[3, 0, 0],
@@ -475,9 +475,9 @@ if __name__ == "__main__":
 
     # Label Plots
     fig.suptitle(f"Motor Angles vs Time")
-    ax_motor0.set_title(f"Motor Joint 0 KP: {K_P[0,0]} KD: {K_D[0,0]} KI: {K_I[0,0]}")
-    ax_motor1.set_title(f"Motor Joint 1 KP: {K_P[1,1]} KD: {K_D[1,1]} KI: {K_I[1,1]}")
-    ax_motor2.set_title(f"Motor Joint 2 KP: {K_P[2,2]} KD: {K_D[2,2]} KI: {K_I[2,2]}")
+    ax_motor0.set_title(f"Motor Joint 0 (KP: {K_P[0,0]} KD: {K_D[0,0]} KI: {K_I[0,0]})")
+    ax_motor1.set_title(f"Motor Joint 1 (KP: {K_P[1,1]} KD: {K_D[1,1]} KI: {K_I[1,1]})")
+    ax_motor2.set_title(f"Motor Joint 2 (KP: {K_P[2,2]} KD: {K_D[2,2]} KI: {K_I[2,2]})")
 
     ax_motor2.set_xlabel("Time [s]")
 
