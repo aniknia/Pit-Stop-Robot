@@ -450,21 +450,21 @@ if __name__ == "__main__":
     # Extract results
     time_stamps = np.asarray(controller.time_stamps)
     joint_positions = np.rad2deg(controller.joint_position_history).T
+    endeff_positions = np.rad2deg(controller.endeff_position_history).T
 
     # ----------------------------------------------------------------------------------
     # Plot Results
     # ----------------------------------------------------------------------------------
-    date_str = datetime.now().strftime("%d-%m_%H-%M-%S")
-    fig_file_name = f"joint_positions_vs_time_{date_str}.pdf"
 
+    # Joint Angles vs Time
     # Create figure and axes
     fig, (ax_motor0, ax_motor1, ax_motor2) = plt.subplots(3, 1, figsize=(10, 12))
 
     # Label Plots
     fig.suptitle(f"Motor Angles vs Time")
-    ax_motor0.set_title("Motor Joint 0")
-    ax_motor1.set_title("Motor Joint 1")
-    ax_motor2.set_title("Motor Joint 2")
+    ax_motor0.set_title(f"Motor Joint 0 KP: {K_P[0,0]} KD: {K_D[0,0]} KI: {K_I[0,0]}")
+    ax_motor1.set_title(f"Motor Joint 1 KP: {K_P[1,1]} KD: {K_D[1,1]} KI: {K_I[1,1]}")
+    ax_motor2.set_title(f"Motor Joint 2 KP: {K_P[2,2]} KD: {K_D[2,2]} KI: {K_I[2,2]}")
 
     ax_motor2.set_xlabel("Time [s]")
 
@@ -545,6 +545,36 @@ if __name__ == "__main__":
     ax_motor1.legend()
     ax_motor2.legend()
 
-    fig.savefig("motorplots.png")
+    fig.savefig("joint angles.png")
+
+    # End Effector vs Time
+    fig, (x_axis, y_axis) = plt.subplots(2, 1, figsize=(10, 12))
+
+    # Label Plot
+    fig.suptitle(f"End Effector Position vs Time")
+    x_axis.set_title("X Axis")
+    y_axis.set_title("Y Axis")
+
+    y_axis.set_xlabel("Time [s]")
+
+    x_axis.set_ylabel("X Position [m]")
+    y_axis.set_ylabel("Y Position [m]")
+
+    # Plot end effector positions
+    x_axis.plot(
+        time_stamps,
+        endeff_positions[0],
+        color="black",
+        label="End Effector Position",
+    )
+    y_axis.plot(
+        time_stamps,
+        endeff_positions[1],
+        color="black",
+        label="End Effector Position",
+    )
+
+    fig.savefig("end effector positions.png")
+
     # ----------------------------------------------------------------------------------
     plt.show()
