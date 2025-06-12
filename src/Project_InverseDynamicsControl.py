@@ -394,7 +394,7 @@ if __name__ == "__main__":
                    [0, 0, 0]])
 
     # Derivative Gain
-    K_D = np.array([[5, 0, 0],
+    K_D = np.array([[10, 0, 0],
                    [0, 0, 0],
                    [0, 0, 0]])
     
