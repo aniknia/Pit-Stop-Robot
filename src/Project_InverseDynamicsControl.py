@@ -18,12 +18,9 @@ from numpy.typing import NDArray
 
 from mechae263C_helpers.minilabs import FixedFrequencyLoopManager, DCMotorModel
 
-# ------------------------------------------------------------------------------
-# Global Variables
-# ------------------------------------------------------------------------------
-# Linkage Lengths
+    # Global Variables
+    # Linkage Lengths
 l1, l2, l3 = 0.15, 0.1, .07 #[m]
-# ------------------------------------------------------------------------------
 
 class InverseDynamicsController:
     def __init__(
@@ -42,21 +39,19 @@ class InverseDynamicsController:
         qddot_desired_deg_per_s2: Sequence[float],
         max_duration_s: float = 3.0,
     ):
-        # ------------------------------------------------------------------------------
-        # Setting up Controller Related Variables
-        # ------------------------------------------------------------------------------
-        # Intial and Desired Positions
+        
+            # Setting up Controller Related Variables
         self.q_initial_rad = np.deg2rad(q_initial_deg)
         self.q_desired_rad = np.deg2rad(q_desired_deg)
 
-        # Intial and Desired Velocities
+            # Intial and Desired Velocities
         self.qdot_initial_rad_per_s = np.deg2rad(qdot_initial_deg_per_s)
         self.qdot_desired_rad_per_s = np.deg2rad(qdot_desired_deg_per_s)
 
-        # Intial and Desired Accelerations
+            # Intial and Desired Accelerations
         self.qddot_desired_rad_per_s2 = np.deg2rad(qddot_desired_deg_per_s2)
 
-        # Gains
+            # Gains
         self.K_P_out = np.asarray(K_P_out, dtype=np.double)
         self.K_P_in = np.asarray(K_P_in, dtype=np.double)
         self.K_D_out = np.asarray(K_D_out, dtype=np.double)
@@ -74,55 +69,37 @@ class InverseDynamicsController:
         self.time_stamps = deque()
         self.run_stamps = deque()
         self.endeff_position_history = deque()
-        # ------------------------------------------------------------------------------
 
-
-        # ------------------------------------------------------------------------------
-        # Manipulator Parameters
-        # ------------------------------------------------------------------------------
-        # Density PLA, 30%
-        rho = 1250*0.3 #[kg/m^3]
-        # Linkage Lengths
+            # Manipulator Parameters
+        rho = 1250*0.3 #[kg/m^3], 30% Density
+            # Linkage Lengths
         self.l1, self.l2, self.l3 = l1, l2, l3 #[m]
-        # Center of Mass Lengths
+            # Center of Mass Lengths
         self.lc1, self.lc2, self.lc3 = 0.13, 0.08, 0.05 #[m]
-        # Width of Link
+            # Width of Link
         self.w1, self.w2, self.w3 = 0.5*(0.036+0.022), 0.5*(0.036+0.022), 0.5*(.036+0.023) #[m]
-        # Masses
+            # Masses
         self.m3 = 0.077 + 0.014*0.3 #[kg]
         self.m2 = self.m3 + 0.077 + self.w2*self.l2*0.003*rho*2 #[kg]
         self.m1 = self.m2 + 0.077 + self.w1*self.l1*0.004*rho*2 #[kg]
-        # ------------------------------------------------------------------------------
 
-
-        # ------------------------------------------------------------------------------
-        # Motor Communication Related Variables
-        # ------------------------------------------------------------------------------
+            # Motor Communication Related Variables
         self.motor_group: DynamixelMotorGroup = motor_group
-        # ------------------------------------------------------------------------------
-    
 
-        # ------------------------------------------------------------------------------
-        # DC Motor Modeling
-        # ------------------------------------------------------------------------------
+            # DC Motor Modeling
         self.pwm_limits = []
         for info in self.motor_group.motor_info.values():
             self.pwm_limits.append(info.pwm_limit)
         self.pwm_limits = np.asarray(self.pwm_limits)
 
-        # MX28-AR dynamixel motors (pwm voltage commands).
+            # MX28-AR dynamixel motors (pwm voltage commands).
         self.motor_model = DCMotorModel(
             self.control_period_s, pwm_limits=self.pwm_limits
         )
-        # ------------------------------------------------------------------------------
 
-
-        # ------------------------------------------------------------------------------
-        # Clean Up / Exit Handler Code
-        # ------------------------------------------------------------------------------
+            # Clean Up / Exit Handler Code
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
-        # ------------------------------------------------------------------------------
     
     def start_control_loop(self):
         self.go_to_home_configuration()
@@ -141,64 +118,48 @@ class InverseDynamicsController:
             integral_error=0
 
             while self.should_continue:
-                # --------------------------------------------------------------------------
-                # Step 1 - Get feedback
-                # --------------------------------------------------------------------------
-                # Position Feedback (Actual)
+
+                    # Step 1 - Get feedback
                 q_rad = np.asarray(list(self.motor_group.angle_rad.values()))
 
-                # Velocity Feedback (Actual)
+                    # Velocity Feedback (Actual)
                 qdot_rad_per_s = np.asarray(list(self.motor_group.velocity_rad_per_s.values()))
 
-                # Save for plotting
+                    # Save for plotting
                 self.joint_position_history.append(q_rad)
                 self.endeff_position_history.append(self.joints2endeff(q_rad))
                 self.time_stamps.append(time.time() - start_time)
                 self.run_stamps.append(time.time() - run_time)
-                # --------------------------------------------------------------------------
 
-
-                # --------------------------------------------------------------------------
-                # Step 2 - Check termination criterion
-                # --------------------------------------------------------------------------
-                # Stop after max_duration_s seconds
+                    # Step 2 - Check termination criterion
+                    # Stop after max_duration_s seconds
                 if self.run_stamps[-1] - self.run_stamps[0] > self.max_duration_s:
                     break
-                # --------------------------------------------------------------------------
 
-                # --------------------------------------------------------------------------
-                # Step 3 - Outer Control Loop
-                # --------------------------------------------------------------------------
-                # Position Error
+                    # Step 3 - Outer Control Loop
+                    # Position Error
                 q_error = x - q_rad
 
-                # Velocity Error
+                    # Velocity Error
                 qdot_error = velocities[i] - qdot_rad_per_s
 
-                # Integral Error for Steady State
+                    # Integral Error for Steady State
                 integral_error += q_error * self.control_period_s
 
                 y = (gains_kp[i] @ q_error) + (gains_kd[i] @ qdot_error) + (gains_ki[i] @ integral_error) + self.qddot_desired_rad_per_s2
-                # --------------------------------------------------------------------------
 
-                # --------------------------------------------------------------------------
-                # Step 4 - Inner Control Loop
-                # --------------------------------------------------------------------------
-                #Inertia Matrix
+                    # Step 4 - Inner Control Loop
+                    #Inertia Matrix
                 B_q = self.compute_inertia_matrix(q_rad)
 
-                #Nonlinear Components
+                    # Nonlinear Components
                 n = (self.compute_coriolis_matrix(q_rad, qdot_rad_per_s) @ qdot_rad_per_s) + self.calc_gravity_compensation_torque(q_rad)
 
-                #Torque Output Controls
+                    # Torque Output Controls
                 u = (B_q @ y) + n
-                # --------------------------------------------------------------------------
 
-
-                # --------------------------------------------------------------------------
-                # Step 5 - Command control action
-                # --------------------------------------------------------------------------
-                # Converts the torque control action into a PWM command
+                    # Step 5 - Command control action
+                    # Converts the torque control action into a PWM command
                 pwm_command = self.motor_model.calc_pwm_command(u)
 
                 self.motor_group.pwm = {
@@ -207,9 +168,8 @@ class InverseDynamicsController:
                         self.motor_group.dynamixel_ids, pwm_command, strict=True
                     )
                 }
-                # --------------------------------------------------------------------------
 
-                # Creates fixed frequency for while loop
+                    # Creates fixed frequency for while loop
                 self.loop_manager.sleep()
 
         self.stop()
@@ -230,22 +190,16 @@ class InverseDynamicsController:
         m1, m2, m3 = self.m1, self.m2, self.m3
         l1, l2, l3 = self.l1, self.l2, self.l3
         lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
-        w1, w2, w3 = self.w1, self.w2, self.w3
 
-        #Moment of Inertia of each link, added these values to the B matrix for 2d rectangular inertia about perpendicular axis
-        I1 = 1/12 * m1 * (l1**2 + w1**2)
-        I2 = 1/12 * m2 * (l2**2 + w2**2)
-        I3 = 1/12 * m3 * (l3**2 + w3**2)
-
-        #Initialize Inertia Matrix
+            # Initialize Inertia Matrix
         B_q = np.zeros((3, 3))
 
-        # Diagonal Terms
+            # Diagonal Terms
         B_q[0, 0] = m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(q2)) + m3 * (l1**2 + l2**2 + lc3**2 + 2 * l1 * l2 * np.cos(q2) + 2 * l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
         B_q[1, 1] = m2 * lc2**2 + m3 * (l2**2 + lc3**2 + 2 * l2 * lc3 * np.cos(q3))
         B_q[2, 2] = m3 * lc3**2
 
-        # Off-diagonal Terms (symmetric)
+            # Off-diagonal Terms (symmetric)
         B_q[0, 1] = B_q[1, 0] = m2 * (lc2**2 + l1 * lc2 * np.cos(q2)) + m3 * (l2**2 + lc3**2 + l1 * l2 * np.cos(q2) + l1 * lc3 * np.cos(q2 + q3) + 2 * l2 * lc3 * np.cos(q3))
         B_q[0, 2] = B_q[2, 0] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3) + l1 * lc3 * np.cos(q2 + q3))
         B_q[1, 2] = B_q[2, 1] = m3 * (lc3**2 + l2 * lc3 * np.cos(q3))
@@ -262,16 +216,16 @@ class InverseDynamicsController:
         l1, l2 = self.l1, self.l2
         lc1, lc2, lc3 = self.lc1, self.lc2, self.lc3
 
-        #Initialize Inertia Matrix
+            # Initialize Inertia Matrix
         C = np.zeros((3, 3))
 
-        #Christoffel Symbols
+            # Christoffel Symbols
         c12 = m2*l1*lc2
         c23 = m3*l1*lc3
         c13 = m3*l1*lc3
         c123 = m2*l1*lc2 + m3*l1*l2
 
-        #Coriolis matrix, C33 = 0
+            # Coriolis matrix, C33 = 0
         C[0, 0] = -c123*np.sin(q2)*qdot2 - c23*np.sin(q3)*qdot3 - c13*np.sin(q2+q3)*(qdot2+qdot3)
         C[0, 1] = -c123*np.sin(q2)*(qdot1+qdot2) - c23*np.sin(q3)*qdot3 - c13*np.sin(q2+q3)*(qdot1+qdot2+qdot3)
         C[0, 2] = -(c23*np.sin(q3) - c13*np.sin(q2+q3))*(qdot1+qdot2+qdot3)
@@ -312,7 +266,7 @@ class InverseDynamicsController:
         self.motor_group.set_mode(DynamixelMode.Position)
         self.motor_group.enable_torque()
 
-        # Move to home position (self.q_initial)
+            # Move to home position (self.q_initial)
         home_positions_rad = {
             dynamixel_id: self.q_initial_rad[i]
             for i, dynamixel_id in enumerate(self.motor_group.dynamixel_ids)
@@ -331,10 +285,10 @@ class InverseDynamicsController:
                     should_continue_loop = True
                     break
         
-        # Waits 2 seconds before continuing
+            # Waits 2 seconds before continuing
         time.sleep(2)
         
-        # Set PWM Mode (i.e. voltage control)
+            # Set PWM Mode (i.e. voltage control)
         self.motor_group.disable_torque()
         self.motor_group.set_mode(DynamixelMode.PWM)
         self.motor_group.enable_torque()
@@ -343,9 +297,9 @@ class InverseDynamicsController:
         self, joint_positions_rad: NDArray[np.double]
     ) -> NDArray[np.double]:
         q1, q2, q3 = joint_positions_rad
-        #Forward kinematics from joint
+            # Forward kinematics from joint
 
-        # Recover theta1, theta2, theta3 (flipped motors)
+            # Recover theta1, theta2, theta3 (flipped motors)
         theta1 = 2 * np.pi - q1
         theta2 = 2 * np.pi - q2
         theta3 = 2 * np.pi - q3
@@ -353,14 +307,14 @@ class InverseDynamicsController:
         theta1eff = theta1 - np.pi
         theta2eff = np.pi - (theta1eff + theta2)
 
-        # Compute (x0, y0) using forward kinematics for the first two links
+            # Compute (x0, y0) using forward kinematics for the first two links
         x0 = l1 * np.cos(theta1eff) + l2 * np.cos(theta2eff)
         y0 = l1 * np.sin(theta1eff) - l2 * np.sin(theta2eff)
         
-        # Compute tilt
+            # Compute tilt
         tilt = (theta1eff + theta2 + theta3) - 2*np.pi
         
-        # Compute end-effector position (x, y)
+            # Compute end-effector position (x, y)
         x = x0 + l3 * np.cos(tilt)
         y = y0 + l3 * np.sin(tilt)
 
@@ -368,8 +322,8 @@ class InverseDynamicsController:
 
 if __name__ == "__main__":
     
-    # Inverse Kinematics
-    # Input end effector x, y, and tilt angle
+        # Inverse Kinematics
+        # Input end effector x, y, and tilt angle
     def endeff2joints(x, y, tilt):
 
         tilt = np.deg2rad(tilt)
@@ -384,91 +338,78 @@ if __name__ == "__main__":
         theta2 = np.arccos((l2**2 + l1**2 - x0**2 - y0**2)/(2*l2*l1))
         theta3 = 2*np.pi - (theta1A + theta1B) - theta2 + tilt
 
-        # Flips motors (orientation)
+            # Flips motors (orientation)
         q1 = 2*np.pi - theta1
         q2 = 2*np.pi - theta2
         q3 = 2*np.pi - theta3
 
         return np.rad2deg([q1, q2, q3])
     
-    # Initial Position
+        # Initial Position
     q_initial_endeff = [0.18,0.05,0]
     q_initial = endeff2joints(*q_initial_endeff)
-    # Desired Position
+        # Desired Position
     q_desired_endeff = [0.3,0.05,0]
     q_desired = endeff2joints(*q_desired_endeff)
 
-    # Initial Joint Velocities
+        # Initial Joint Velocities
     qdot_initial = [0, 0, 0]
-    # Desired Joint Velocities
+        # Desired Joint Velocities
     qdot_desired = [0, 0, 0]
 
-    # Desired Joint Acceleration
+        # Desired Joint Acceleration
     qddot_desired = [0, 0, 0]
 
-    # Desired Gains
-    # Proportional Gain desired
+        # Desired Gains
+        # Proportional Gain desired
     K_P_out = np.array([[211, 0, 0],
                    [0, 420, 0],
                    [0, 0, 2100]])
-    # Derivative Gain desired
+        # Derivative Gain desired
     K_D_out = np.array([[13.8, 0, 0],
                    [0, 60, 0],
                    [0, 0, 2]])
-    # Integral Gain desired
+        # Integral Gain desired
     K_I_out = np.array([[200, 0, 0],
                    [0, 280, 0],
                    [0, 0, 60]])
     
 
-    # Initial Gains
-    # Proportional Gain Initial
+        # Initial Gains
+        # Proportional Gain Initial
     K_P_in = np.array([[65, 0, 0],
                    [0, 70, 0],
                    [0, 0, 1200]])
-
-    # Derivative Gain Initial
+        # Derivative Gain Initial
     K_D_in = np.array([[9.2, 0, 0],
                    [0, 32, 0],
                    [0, 0, 2]])
     
-    # Integral Gain Initial
+        # Integral Gain Initial
     K_I_in = np.array([[160, 0, 0],
                    [0, 750, 0],
                    [0, 0, 600]])
     
-    """ BEFORE ADDING NONLINEAR TERMS
-    # Proportional Gain
-    K_P = np.array([[3, 0, 0],
-                   [0, 1.85, 0],
-                   [0, 0, 1.75]])
-
-    # Derivative Gain
-    K_D = np.array([[0.16, 0, 0],
-                   [0, 0.04, 0],
-                   [0, 0, 0.13]])
-    """
-
-    # Correct COM Port and Baud Rate
-    # Mac: /dev/tty.usbserial-FT9BTFVF
-    # Windows: COM4
+        # Correct COM Port and Baud Rate
+        # Mac: /dev/tty.usbserial-FT9BTFVF
+        # Windows: COM4
     dxl_io = DynamixelIO(
         device_name="COM4",
         baud_rate=57_600,
     )
 
-    # Create `DynamixelMotorFactory` object to create dynamixel motor object
+        # Create `DynamixelMotorFactory` object to create dynamixel motor object
     motor_factory = DynamixelMotorFactory(
         dxl_io=dxl_io,
         dynamixel_model=DynamixelModel.MX28
     )
 
-    # Correct Motor IDs
+        # Correct Motor IDs
     dynamixel_ids = 0, 1, 2
 
     motor_group = motor_factory.create(*dynamixel_ids)
 
-    # Make controller
+        # Make controller
     controller = InverseDynamicsController(
         motor_group=motor_group,
         K_P_out=K_P_out,
@@ -483,25 +424,22 @@ if __name__ == "__main__":
         qdot_desired_deg_per_s=qdot_desired,
         qddot_desired_deg_per_s2=qddot_desired
     )
-    # ----------------------------------------------------------------------------------
 
-    # Run controller
+        # Run controller
     controller.start_control_loop()
 
-    # Extract results
+        # Extract results
     time_stamps = np.asarray(controller.time_stamps)
     joint_positions = np.rad2deg(controller.joint_position_history).T
     endeff_positions = np.asarray(controller.endeff_position_history).T
 
-    # ----------------------------------------------------------------------------------
-    # Plot Results
-    # ----------------------------------------------------------------------------------
+        # Plot Results
 
-    # Joint Angles vs Time
-    # Create figure and axes
+        # Joint Angles vs Time Graph
+        # Create figure and axes
     fig, (ax_motor0, ax_motor1, ax_motor2) = plt.subplots(3, 1, figsize=(10, 12))
 
-    # Label Plots
+        # Label Plots
     fig.suptitle(f"Motor Angles vs Time")
     ax_motor0.set_title(f"Motor Joint 0 (KP: {K_P_out[0,0]}, {K_P_in[0,0]} KD: {K_D_out[0,0]}, {K_D_in[0,0]} KI: {K_I_out[0,0]}, {K_I_in[0,0]})")
     ax_motor1.set_title(f"Motor Joint 1 (KP: {K_P_out[1,1]}, {K_P_in[1,1]} KD: {K_D_out[1,1]}, {K_D_in[1,1]} KI: {K_I_out[1,1]}, {K_I_in[1,1]})")
@@ -577,7 +515,7 @@ if __name__ == "__main__":
     )
     ax_motor2.axvline(1.5, ls=":", color="purple")
 
-    # Plot motor angle trajectories
+    # Plot Motor Angle Trajectories
     ax_motor0.plot(
         time_stamps,
         joint_positions[0],
@@ -603,10 +541,10 @@ if __name__ == "__main__":
 
     fig.savefig("joint angles.png")
 
-    # End Effector vs Time
+        # End Effector vs Time Graph
     fig, (x_axis, y_axis) = plt.subplots(2, 1, figsize=(10, 12))
 
-    # Label Plot
+        # Label Plot
     fig.suptitle(f"End Effector Position vs Time")
     x_axis.set_title("X Axis")
     y_axis.set_title("Y Axis")
@@ -616,7 +554,7 @@ if __name__ == "__main__":
     x_axis.set_ylabel("X Position [m]")
     y_axis.set_ylabel("Y Position [m]")
 
-    # Plot end effector positions
+        # Plot End Effector Positions
     x_axis.plot(
         time_stamps,
         endeff_positions[0],
