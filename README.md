@@ -33,6 +33,11 @@ The robot completes a five-phase motion cycle:
 - Approach Lug Nut (Tighten)
 - Final Rest Position
 
+End Effector and Joint Locations
+
+<h3 align="center"><img src="src/end effector positions.png" alt="End Effector Location" height="100px"></h3>
+<h3 align="center"><img src="src/joint angles.png" alt="Joint Position" height="100px"></h3>
+
 Limitations
 
 - Motor strength and model inaccuracies introduced steady-state and oscillation errors
