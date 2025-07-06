@@ -13,6 +13,8 @@ Features
 - Simulated in CoppeliaSim with Python API integration
 - Physical prototype built using FDM 3D-printed components and Dynamixel motors
 
+<h3 align="center"><img src="src/pitstoprobot cad.png" alt="Model of the Pit Stop Robot" height="100px"></h3>
+
 System Architecture
 
 - Language: Python
